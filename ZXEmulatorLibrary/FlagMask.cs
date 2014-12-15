@@ -8,19 +8,19 @@ namespace ZXEmulatorLibrary
 {
     public enum FlagMask
     {
-        NS  = ~0x0080,
-        S   =  0x0080,  // S
-        NZ  = ~0x0040,
-        Z   =  0x0040,  // Z
+        NS  = 0x7F,
+        S   = 0x80,  // S
+        NZ  = 0xBF,
+        Z   = 0x40,  // Z
         // undocumented flag 5
-        NH  = ~0x0010,
-        H   =  0x0010,  // H
+        NH  = 0xEF,
+        H   = 0x10,  // H
         // undocumented flag 3
-        PO  = ~0x0004,
-        PE  =  0x0004,  // PV
-        NN  = ~0x0002,
-        N   =  0x0002,  // N
-        NC  = ~0x0001,
-        C   =  0x0001,  // C
+        PO  = 0xFB,
+        PE  = 0x04,  // PV
+        NN  = 0xFD,
+        N   = 0x02,  // N
+        NC  = 0xFE,
+        C   = 0x01,  // C
     }
 }

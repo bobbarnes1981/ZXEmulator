@@ -44,6 +44,7 @@
     <Compile Include="Condition.cs" />
     <Compile Include="Register.cs" />
     <Compile Include="RegisterExtN.cs" />
+    <Compile Include="RegisterPair.cs" />
     <Compile Include="RegisterPairAF.cs" />
     <Compile Include="RegisterPairSP.cs" />
     <Compile Include="InterruptMode.cs" />
