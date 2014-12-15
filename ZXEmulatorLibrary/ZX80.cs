@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,5 +24,26 @@ namespace ZXEmulatorLibrary
             '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
             'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
         };
+
+        private Memory m_rom;
+        private Memory m_ram;
+        private Bus m_bus;
+        private Z80 m_cpu;
+
+        public ZX80(string path)
+        {
+            m_rom = new Memory(0x4000, File.ReadAllBytes(path));
+            m_ram = new Memory(0x4000);
+            m_bus = new Bus(m_rom, m_ram);
+            m_cpu = new Z80(m_bus);
+        }
+
+        public void Run()
+        {
+            do
+            {
+                m_cpu.Step();
+            } while (true);
+        }
     }
 }

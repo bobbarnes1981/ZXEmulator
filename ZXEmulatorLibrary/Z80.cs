@@ -204,7 +204,7 @@ namespace ZXEmulatorLibrary
                 case 0xFE: cycles = cp_s(RegisterExtN.N); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: {0x4} @ {1x6}\r\n", m_instructionRegister, m_programCounter));
+                    throw new Exception(string.Format("Unhandled Opcode: {0:x2} @ {1:x4}\r\n", m_instructionRegister, m_programCounter.Register));
             }
             return cycles;
         }
@@ -221,7 +221,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IXd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xDD {0:4x} @ {1:6x}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xDD {0:x2} @ {1:x4}\r\n", opcode, m_programCounter.Register - 1));
             }
 
             return cycles;
