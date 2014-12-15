@@ -295,6 +295,76 @@ namespace ZXEmulatorLibrary
             return nn;
         }
 
+        private short loadHi(short source, byte input)
+        {
+            return (short) ((source & 0x00FF) | (input << 8));
+        }
+
+        private short loadLo(short source, byte input)
+        {
+            return (short) ((source & 0xFF00) | (input));
+        }
+
+        private void loadA(byte input)
+        {
+            m_AF = loadHi(m_AF, input);
+        }
+
+        private void loadB(byte input)
+        {
+            m_BC = loadHi(m_BC, input);
+        }
+
+        private void loadC(byte input)
+        {
+            m_BC = loadLo(m_BC, input);
+        }
+
+        private void loadD(byte input)
+        {
+            m_DE = loadHi(m_DE, input);
+        }
+
+        private void loadE(byte input)
+        {
+            m_DE = loadLo(m_DE, input);
+        }
+
+        private void loadH(byte input)
+        {
+            m_HL = loadHi(m_HL, input);
+        }
+
+        private void loadL(byte input)
+        {
+            m_HL = loadLo(m_HL, input);
+        }
+
+        private byte fetchHi(short source)
+        {
+            return (byte) (source >> 8);
+        }
+
+        private byte fetchLo(short source)
+        {
+            return (byte) (source & 0x0F);
+        }
+
+        private byte fetchA()
+        {
+            return fetchHi(m_AF);
+        }
+
+        private byte fetchB()
+        {
+            return fetchHi(m_BC);
+        }
+
+        private byte fetchC()
+        {
+            return fetchLo(m_BC);
+        }
+
         private int nop()
         {
             //Description: The CPU performs no operation during this machine cycle.
@@ -624,13 +694,13 @@ namespace ZXEmulatorLibrary
             byte n = getN();
             switch(reg)
             {
-                case Register.A: m_AF = (short)((m_AF & 0x00FF) | (n << 8)); break;
-                case Register.B: m_BC = (short)((m_BC & 0xFF00) | (n)); break;
-                case Register.C: m_BC = (short)((m_BC & 0x00FF) | (n << 8)); break;
-                case Register.D: m_DE = (short)((m_DE & 0xFF00) | (n)); break;
-                case Register.E: m_DE = (short)((m_DE & 0x00FF) | (n << 8)); break;
-                case Register.H: m_HL = (short)((m_HL & 0xFF00) | (n)); break;
-                case Register.L: m_HL = (short)((m_HL & 0x00FF) | (n << 8)); break;
+                case Register.A: loadA(n); break;
+                case Register.B: loadB(n); break;
+                case Register.C: loadC(n); break;
+                case Register.D: loadD(n); break;
+                case Register.E: loadE(n); break;
+                case Register.H: loadH(n); break;
+                case Register.L: loadL(n); break;
             }
             return 7;
         }
@@ -688,13 +758,13 @@ namespace ZXEmulatorLibrary
             int cycles = 4;
             switch(reg)
             {
-                case RegisterExtN.B: cp((byte)(m_AF >> 8), (byte)(m_BC >> 8)); break;
-                case RegisterExtN.C: cp((byte)(m_AF >> 8), (byte)(m_BC & 0x0F)); break;
-                case RegisterExtN.D: cp((byte)(m_AF >> 8), (byte)(m_DE >> 8)); break;
-                case RegisterExtN.E: cp((byte)(m_AF >> 8), (byte)(m_DE & 0x0F)); break;
-                case RegisterExtN.H: cp((byte)(m_AF >> 8), (byte)(m_HL >> 8)); break;
-                case RegisterExtN.L: cp((byte)(m_AF >> 8), (byte)(m_HL & 0x0F)); break;
-                case RegisterExtN.A: cp((byte)(m_AF >> 8), (byte)(m_AF >> 8)); break;
+                case RegisterExtN.B: cp(fetchA(), fetchB()); break;
+                case RegisterExtN.C: cp(fetchA(), fetchC()); break;
+                case RegisterExtN.D: cp(fetchA(), (byte)(m_DE >> 8)); break;
+                case RegisterExtN.E: cp(fetchA(), (byte)(m_DE & 0x0F)); break;
+                case RegisterExtN.H: cp(fetchA(), (byte)(m_HL >> 8)); break;
+                case RegisterExtN.L: cp(fetchA(), (byte)(m_HL & 0x0F)); break;
+                case RegisterExtN.A: cp(fetchA(), (byte)(m_AF >> 8)); break;
 
                 case RegisterExtN.N: cp((byte)(m_AF >> 8), m_bus.Read(m_programCounter)); m_programCounter++; cycles = 7; break;
 
