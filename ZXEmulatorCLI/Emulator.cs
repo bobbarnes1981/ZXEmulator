@@ -8,16 +8,26 @@ namespace ZXEmulatorCLI
 {
     public class Emulator
     {
-        private ZX81 m_zx80;
+        private IHardware m_hardware;
 
-        public Emulator(string path)
+        public Emulator(HardwareType hardware, string path)
         {
-            m_zx80 = new ZX81(path);
+            switch(hardware)
+            {
+                case HardwareType.ZX80:
+                    m_hardware = new ZX80(path);
+                    break;
+                case HardwareType.ZX81:
+                    m_hardware = new ZX81(path);
+                    break;
+                default:
+                    throw new NotImplementedException(hardware.ToString());
+            }
         }
 
         public void Run()
         {
-            m_zx80.Run();
+            m_hardware.Run();
         }
     }
 }

@@ -73,6 +73,7 @@ namespace ZXEmulatorLibrary
         private int executeNextOpcode()
         {
             m_instructionRegister = m_bus.Read(m_programCounter.Register);
+            //Console.WriteLine("0x{0:x4} 0x{1:x2}", m_programCounter.Register, m_instructionRegister);
             m_programCounter.Register++;
             return executeOpcode();
         }
@@ -204,7 +205,7 @@ namespace ZXEmulatorLibrary
                 case 0xFE: cycles = cp_s(RegisterExtN.N); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: {0:x2} @ {1:x4}\r\n", m_instructionRegister, m_programCounter.Register));
+                    throw new Exception(string.Format("Unhandled Opcode: 0x{0:x2} @ 0x{1:x4}\r\n", m_instructionRegister, m_programCounter.Register - 1));
             }
             return cycles;
         }
@@ -221,7 +222,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IXd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xDD {0:x2} @ {1:x4}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xDD 0x{0:x2} @ 0x{1:x4}\r\n", opcode, m_programCounter.Register - 1));
             }
 
             return cycles;
@@ -252,7 +253,7 @@ namespace ZXEmulatorLibrary
                 case 0x73: cycles = ld__nn__dd(RegisterPairSP.SP); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xED {0:4x} @ {1:6x}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xED 0x{0:4x} @ 0x{1:6x}\r\n", opcode, m_programCounter.Register - 1));
             }
             return cycles;
         }
@@ -272,7 +273,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IYd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xFD {0:4x} @ {1:6x}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:4x} @ 0x{1:6x}\r\n", opcode, m_programCounter.Register - 1));
             }
             return cycles;
         }
@@ -285,7 +286,7 @@ namespace ZXEmulatorLibrary
             return n;
         }
 
-        private short getNN()
+        private ushort getNN()
         {
             RegisterPair nn = new RegisterPair();
             nn.Lo = m_bus.Read(m_programCounter.Register);
@@ -315,8 +316,8 @@ namespace ZXEmulatorLibrary
             //	3			11 (4, 3, 4)	2.75
             //Condition Bits Affected: None
             byte n = getN();
-            short address = n;
-            address |= (short)(m_AF.Hi << 8);
+            ushort address = n;
+            address |= (ushort)(m_AF.Hi << 8);
             m_bus.Write(address, m_AF.Hi, false);
             return 11;
         }
@@ -334,7 +335,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	2			10 (4, 3, 3)	2.50
             //Condition Bits Affected: None
-            short nn = getNN();
+            ushort nn = getNN();
             switch(reg)
             {
                 case RegisterPairSP.BC: m_BC.Register = nn; break;
@@ -407,8 +408,8 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	3			12 (4, 3, 5)	3.00
             //Condition Bits Affected: None
-            byte e = getN();
-            m_programCounter.Register = (short)(m_programCounter.Register + e);
+            sbyte e = (sbyte)getN();
+            m_programCounter.Register = (ushort)(m_programCounter.Register + e);
             return 12;
         }
 
@@ -431,10 +432,10 @@ namespace ZXEmulatorLibrary
             //	2			7 (4, 3)		1.75
             //Condition Bits Affected: None
             int cycles = 7;
-            byte e = getN();
+            sbyte e = (sbyte)getN();
             if (check_condition(Condition.NZ))
             {
-                m_programCounter.Register = (short)(m_programCounter.Register + e);
+                m_programCounter.Register = (ushort)(m_programCounter.Register + e);
                 cycles = 12;
             }
             return cycles;
@@ -458,10 +459,10 @@ namespace ZXEmulatorLibrary
             //	2			7 (4, 3)		1.75
             //Condition Bits Affected: None
             int cycles = 7;
-            byte e = getN();
+            sbyte e = (sbyte)getN();
             if (check_condition(Condition.Z))
             {
-                m_programCounter.Register = (short)(m_programCounter.Register + e);
+                m_programCounter.Register = (ushort)(m_programCounter.Register + e);
                 cycles = 12;
             }
             return cycles;
@@ -490,7 +491,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	3			10 (4, 3, 3)	2.50
             //Condition Bits Affected: None
-            short nn = getNN();
+            ushort nn = getNN();
             if (check_condition(flg))
             {
                 m_programCounter.Register = nn;
@@ -522,7 +523,7 @@ namespace ZXEmulatorLibrary
             //	N is set
             //	C is not affected
             int cycles = 4;
-            short mem;
+            ushort mem;
             switch(reg)
             {
                 case RegisterExt.A: m_AF.Hi = dec(m_AF.Hi); break;
@@ -924,9 +925,9 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States			4 MHz E.T.
             //	5			16 (4, 3, 3, 3, 3)	4.00
             //Condition Bits Affected: None
-            short nn = getNN();
+            ushort nn = getNN();
             m_bus.Write(nn, m_HL.Lo);
-            m_bus.Write((short)(nn+1), m_HL.Hi);
+            m_bus.Write((ushort)(nn+1), m_HL.Hi);
             return 16;
         }
 
@@ -939,9 +940,9 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States			4 MHz E.T.
             //	5			16 (4, 3, 3, 3, 3)	4.00
             //Condition Bits Affected: None
-            short nn = getNN();
+            ushort nn = getNN();
             m_HL.Lo = m_bus.Read(nn);
-            m_HL.Hi = m_bus.Read((short)(nn+1));
+            m_HL.Hi = m_bus.Read((ushort)(nn+1));
             return 16;
         }
 
@@ -952,9 +953,9 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States			4 MHz E.T.
             //	5			19 (4, 4, 3, 5, 3)	2.50
             //Condition Bits Affected: None
-            byte d = getN();
+            sbyte d = (sbyte)getN();
             byte n = getN();
-            m_bus.Write((short)(m_IY + d), n);
+            m_bus.Write((ushort)(m_IY + d), n);
             return 19;
         }
 
@@ -975,8 +976,8 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States			4 MHz E.T.
             //	5			19 (4, 4, 3, 5, 3)	4.75
             //Condition Bits Affected: None
-            byte d = getN();
-            byte data = m_bus.Read((short)(m_IY + d));
+            sbyte d = (sbyte)getN();
+            byte data = m_bus.Read((ushort)(m_IY + d));
             switch(reg)
             {
                 case Register.B: m_BC.Hi = data; break;
@@ -1007,7 +1008,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States			4 MHz E.T.
             //	5			17 (4, 3, 4, 3, 3)	4.25
             //Condition Bits Affected: None
-            short nn = getNN();
+            ushort nn = getNN();
             m_SP.Register--;
             m_bus.Write(m_SP.Register, m_programCounter.Hi);
             m_SP.Register--;
@@ -1031,7 +1032,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States				4 MHz E.T.
             //	6			20 (4, 4, 3, 3, 3, 3)	5.00
             //Condition Bits Affected: None
-            short nn = getNN();
+            ushort nn = getNN();
             RegisterPair data = new RegisterPair();
             switch (reg)
             {
@@ -1041,7 +1042,7 @@ namespace ZXEmulatorLibrary
                 case RegisterPairSP.SP: data.Register = m_SP.Register; break;
             }
             m_bus.Write(nn, data.Lo);
-            m_bus.Write((short)(nn+1), data.Hi);
+            m_bus.Write((ushort)(nn+1), data.Hi);
             return 20;
         }
 

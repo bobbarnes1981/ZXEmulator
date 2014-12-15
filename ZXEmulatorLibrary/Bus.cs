@@ -23,12 +23,12 @@ namespace ZXEmulatorLibrary
             m_topOfRam = m_rom.Size + m_ram.Size;
         }
 
-        public byte Read(short address)
+        public byte Read(ushort address)
         {
             return Read(address, true);
         }
 
-        public byte Read(short address, bool memreq)
+        public byte Read(ushort address, bool memreq)
         {
             if (memreq)
             {
@@ -40,12 +40,12 @@ namespace ZXEmulatorLibrary
             }
         }
 
-        private byte ReadIO(short address)
+        private byte ReadIO(ushort address)
         {
             throw new NotImplementedException();
         }
 
-        private byte ReadMemory(short address)
+        private byte ReadMemory(ushort address)
         {
             if (address < m_topOfRom)
             {
@@ -54,18 +54,18 @@ namespace ZXEmulatorLibrary
 
             if (address < m_topOfRam)
             {
-                return m_ram.Read((short)(address - m_topOfRom));
+                return m_ram.Read((ushort)(address - m_topOfRom));
             }
 
             throw new Exception(string.Format("Invalid memory address {0:x4}", address));
         }
 
-        public void Write(short address, byte data)
+        public void Write(ushort address, byte data)
         {
             Write(address, data, true);
         }
 
-        public void Write(short address, byte data, bool memreq)
+        public void Write(ushort address, byte data, bool memreq)
         {
             if (memreq)
             {
@@ -77,12 +77,12 @@ namespace ZXEmulatorLibrary
             }
         }
 
-        private void WriteIO(short address, byte data)
+        private void WriteIO(ushort address, byte data)
         {
             throw new NotImplementedException();
         }
 
-        private void WriteMemory(short address, byte data)
+        private void WriteMemory(ushort address, byte data)
         {
             if (address < m_topOfRom)
             {
@@ -91,7 +91,7 @@ namespace ZXEmulatorLibrary
             
             if (address < m_topOfRam)
             {
-                m_ram.Write((short)(address - m_topOfRom), data);
+                m_ram.Write((ushort)(address - m_topOfRom), data);
             }
             else
             {
