@@ -18,11 +18,34 @@ namespace ZXEmulatorLibrary
         {
             m_rom = rom;
             m_ram = ram;
+
             m_topOfRom = m_rom.Size;
             m_topOfRam = m_rom.Size + m_ram.Size;
         }
 
         public byte Read(short address)
+        {
+            return Read(address, true);
+        }
+
+        public byte Read(short address, bool memreq)
+        {
+            if (memreq)
+            {
+                return ReadMemory(address);
+            }
+            else
+            {
+                return ReadIO(address);
+            }
+        }
+
+        private byte ReadIO(short address)
+        {
+            throw new NotImplementedException();
+        }
+
+        private byte ReadMemory(short address)
         {
             if (address < m_topOfRom)
             {
@@ -38,6 +61,28 @@ namespace ZXEmulatorLibrary
         }
 
         public void Write(short address, byte data)
+        {
+            Write(address, data, true);
+        }
+
+        public void Write(short address, byte data, bool memreq)
+        {
+            if (memreq)
+            {
+                WriteMemory(address, data);
+            }
+            else
+            {
+                WriteIO(address, data);
+            }
+        }
+
+        private void WriteIO(short address, byte data)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void WriteMemory(short address, byte data)
         {
             if (address < m_topOfRom)
             {

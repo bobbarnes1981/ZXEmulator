@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ZXEmulatorLibrary
 {
-    public class ZX80
+    public class ZX81
     {
         private int m_videoWidth = 256;
         private int m_videoHeight = 192;
@@ -30,12 +30,16 @@ namespace ZXEmulatorLibrary
         private Bus m_bus;
         private Z80 m_cpu;
 
-        public ZX80(string path)
+        private ULA m_ula;
+
+        public ZX81(string path)
         {
             m_rom = new Memory(0x4000, File.ReadAllBytes(path));
             m_ram = new Memory(0x4000);
             m_bus = new Bus(m_rom, m_ram);
             m_cpu = new Z80(m_bus);
+
+            m_ula = new ULA();
         }
 
         public void Run()

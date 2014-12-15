@@ -314,12 +314,10 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	3			11 (4, 3, 4)	2.75
             //Condition Bits Affected: None
-
-            //TODO: implement this
             byte n = getN();
-
-            throw new NotImplementedException();
-
+            short address = n;
+            address |= (short)(m_AF.Hi << 8);
+            m_bus.Write(address, m_AF.Hi, false);
             return 11;
         }
 
