@@ -95,6 +95,7 @@ namespace ZXEmulatorLibrary
             {0xC8, "ret_cc Z"},
             {0xC9, "ret"},
             {0xCA, "jp_cc_nn Z"},
+            {0xCB, "CB"},
 
             {0xCD, "call_nn"},
 
@@ -137,6 +138,11 @@ namespace ZXEmulatorLibrary
             {0xFE, "cp_s N"},
         };
 
+        private Dictionary<byte, string> m_opCodesCB = new Dictionary<byte, string>
+        {
+
+        };
+
         private Dictionary<byte, string> m_opCodesDD = new Dictionary<byte, string>
         {
 
@@ -174,7 +180,7 @@ namespace ZXEmulatorLibrary
         private bool m_IFF1 = false;
         private bool m_IFF2 = false;
 
-        private RegisterPair m_programCounter = new RegisterPair();
+        private RegisterPair m_PC = new RegisterPair();
         private byte m_instructionRegister = 0x00;
         
         private bool m_halted = false;
@@ -193,7 +199,7 @@ namespace ZXEmulatorLibrary
         private short m_IX;
         private short m_IY;
 
-        private byte m_I = 0x00;
+        private byte m_I = 0x00; // TODO: make external accessible for use during interrupt for addressing
         private byte m_R = 0x00;
 
         private IBus m_bus;
@@ -205,16 +211,16 @@ namespace ZXEmulatorLibrary
         }
 
 
-        public uint Step()
+        public uint Step(bool interrupt)
         {
-            bool interrupt = (m_R & 0x20) == 0x20; //this is probably wrong
+            // TODO: INTACK cycle (whatever that is) must disable interrupts (IFF1 & IFF2?)
 
             if (interrupt)
             {
                 switch (m_interruptMode)
                 {
                     case InterruptMode.Mode_0: throw new NotImplementedException("Interrupt mode 0 not implemented"); break;
-                    case InterruptMode.Mode_1: m_programCounter.Register = 0x0038; m_halted = false; break;
+                    case InterruptMode.Mode_1: rst_p(ResetLocation.Addr38h); m_halted = false; break;
                     case InterruptMode.Mode_2: throw new NotImplementedException("Interrupt Mode 2 not implemented"); break;
                 }
             }
@@ -230,9 +236,9 @@ namespace ZXEmulatorLibrary
 
         private uint executeNextOpcode()
         {
-            m_instructionRegister = m_bus.Read(m_programCounter.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, m_instructionRegister, m_opCodes[m_instructionRegister]);
-            m_programCounter.Register++;
+            m_instructionRegister = m_bus.Read(m_PC.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, m_instructionRegister, m_opCodes[m_instructionRegister]);
+            m_PC.Register++;
             return executeOpcode();
         }
 
@@ -328,6 +334,7 @@ namespace ZXEmulatorLibrary
                 case 0xC8: cycles = ret_cc(Condition.Z); break;
                 case 0xC9: cycles = ret(); break;
                 case 0xCA: cycles = jp_cc_nn(Condition.Z); break;
+                case 0xCB: cycles = executeOpcodeCB(); break;
 
                 case 0xCD: cycles = call_nn(); break;
 
@@ -371,8 +378,24 @@ namespace ZXEmulatorLibrary
                 case 0xFE: cycles = cp_s(RegisterExtN.N); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0x{0:x2} @ 0x{1:x4}", m_instructionRegister, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0x{0:x2} @ 0x{1:x4}", m_instructionRegister, m_PC.Register - 1));
             }
+            return cycles;
+        }
+
+        private uint executeOpcodeCB()
+        {
+            incrementR();
+            uint cycles = 0;
+            byte opcode = m_bus.Read(m_PC.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesCB[opcode]);
+            m_PC.Register++;
+            switch (opcode)
+            {
+                default:
+                    throw new Exception(string.Format("Unhandled Opcode: 0xCB 0x{0:x2} @ 0x{1:x4}", opcode, m_PC.Register));
+            }
+
             return cycles;
         }
 
@@ -380,9 +403,9 @@ namespace ZXEmulatorLibrary
         {
             incrementR();
             uint cycles = 0;
-            byte opcode = m_bus.Read(m_programCounter.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesDD[opcode]);
-            m_programCounter.Register++;
+            byte opcode = m_bus.Read(m_PC.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesDD[opcode]);
+            m_PC.Register++;
             switch (opcode)
             {
                 case 0x35: cycles = dec_m(RegisterExt.IXd); break;
@@ -390,7 +413,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IXd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xDD 0x{0:x2} @ 0x{1:x4}", opcode, m_programCounter.Register));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xDD 0x{0:x2} @ 0x{1:x4}", opcode, m_PC.Register));
             }
 
             return cycles;
@@ -400,9 +423,9 @@ namespace ZXEmulatorLibrary
         {
             incrementR();
             uint cycles = 0;
-            byte opcode = m_bus.Read(m_programCounter.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesED[opcode]);
-            m_programCounter.Register++;
+            byte opcode = m_bus.Read(m_PC.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesED[opcode]);
+            m_PC.Register++;
             switch (opcode)
             {
                 case 0x43: cycles = ld__nn__dd(RegisterPairSP.BC); break;
@@ -423,7 +446,7 @@ namespace ZXEmulatorLibrary
                 case 0x73: cycles = ld__nn__dd(RegisterPairSP.SP); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xED 0x{0:4x} @ 0x{1:6x}", opcode, m_programCounter.Register));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xED 0x{0:4x} @ 0x{1:6x}", opcode, m_PC.Register));
             }
             return cycles;
         }
@@ -432,9 +455,9 @@ namespace ZXEmulatorLibrary
         {
             incrementR();
             uint cycles = 0;
-            byte opcode = m_bus.Read(m_programCounter.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesFD[opcode]);
-            m_programCounter.Register++;
+            byte opcode = m_bus.Read(m_PC.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesFD[opcode]);
+            m_PC.Register++;
             switch (opcode)
             {
                 case 0x21: cycles = ld_iy_nn(); break;
@@ -447,7 +470,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IYd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:4x} @ 0x{1:6x}", opcode, m_programCounter.Register));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:4x} @ 0x{1:6x}", opcode, m_PC.Register));
             }
             return cycles;
         }
@@ -566,7 +589,7 @@ namespace ZXEmulatorLibrary
             //	3			12 (4, 3, 5)	3.00
             //Condition Bits Affected: None
             sbyte e = (sbyte)getN();
-            m_programCounter.Register = (ushort)(m_programCounter.Register + e);
+            m_PC.Register = (ushort)(m_PC.Register + e);
             return 12;
         }
 
@@ -592,7 +615,7 @@ namespace ZXEmulatorLibrary
             sbyte e = (sbyte)getN();
             if (check_condition(Condition.NZ))
             {
-                m_programCounter.Register = (ushort)(m_programCounter.Register + e);
+                m_PC.Register = (ushort)(m_PC.Register + e);
                 cycles = 12;
             }
             return cycles;
@@ -620,9 +643,9 @@ namespace ZXEmulatorLibrary
         {
             uint cycles = 7;
             sbyte e = (sbyte)getN();
-            if (check_condition(Condition.C))
+            if (check_condition(Condition.Z))
             {
-                m_programCounter.Register = (ushort)(m_programCounter.Register + e);
+                m_PC.Register = (ushort)(m_PC.Register + e);
                 cycles = 12;
             }
             return cycles;
@@ -650,9 +673,9 @@ namespace ZXEmulatorLibrary
         {
             uint cycles = 7;
             sbyte e = (sbyte)getN();
-            if (check_condition(Condition.Z))
+            if (check_condition(Condition.C))
             {
-                m_programCounter.Register = (ushort)(m_programCounter.Register + e);
+                m_PC.Register = (ushort)(m_PC.Register + e);
                 cycles = 12;
             }
             return cycles;
@@ -684,7 +707,7 @@ namespace ZXEmulatorLibrary
             ushort nn = getNN();
             if (check_condition(flg))
             {
-                m_programCounter.Register = nn;
+                m_PC.Register = nn;
             }
             return 10;
         }
@@ -730,8 +753,8 @@ namespace ZXEmulatorLibrary
 
                 case RegisterExt.HL: m_bus.Write(m_HL.Register, dec(m_bus.Read(m_HL.Register))); cycles = 11; break;
 
-                case RegisterExt.IXd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IX); m_programCounter.Register++; m_bus.Write(mem, dec(m_bus.Read(mem))); cycles = 23; break;
-                case RegisterExt.IYd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IY); m_programCounter.Register++; m_bus.Write(mem, dec(m_bus.Read(mem))); cycles = 23; break;
+                case RegisterExt.IXd: mem = (byte)(m_bus.Read(m_PC.Register) + m_IX); m_PC.Register++; m_bus.Write(mem, dec(m_bus.Read(mem))); cycles = 23; break;
+                case RegisterExt.IYd: mem = (byte)(m_bus.Read(m_PC.Register) + m_IY); m_PC.Register++; m_bus.Write(mem, dec(m_bus.Read(mem))); cycles = 23; break;
             }
             return cycles;
         }
@@ -850,12 +873,12 @@ namespace ZXEmulatorLibrary
                 case RegisterExtN.L: cp(m_AF.Hi, m_HL.Lo); break;
                 case RegisterExtN.A: cp(m_AF.Hi, m_AF.Hi); break;
 
-                case RegisterExtN.N: cp(m_AF.Hi, m_bus.Read(m_programCounter.Register)); m_programCounter.Register++; cycles = 7; break;
+                case RegisterExtN.N: cp(m_AF.Hi, m_bus.Read(m_PC.Register)); m_PC.Register++; cycles = 7; break;
 
                 case RegisterExtN.HL: cp(m_AF.Hi, m_bus.Read(m_HL.Register)); cycles = 7; break;
 
-                case RegisterExtN.IXd: cp(m_AF.Hi, m_bus.Read((byte)(m_bus.Read(m_programCounter.Register) + m_IX))); m_programCounter.Register++; cycles = 19; break;
-                case RegisterExtN.IYd: cp(m_AF.Hi, m_bus.Read((byte)(m_bus.Read(m_programCounter.Register) + m_IY))); m_programCounter.Register++; cycles = 19; break;
+                case RegisterExtN.IXd: cp(m_AF.Hi, m_bus.Read((byte)(m_bus.Read(m_PC.Register) + m_IX))); m_PC.Register++; cycles = 19; break;
+                case RegisterExtN.IYd: cp(m_AF.Hi, m_bus.Read((byte)(m_bus.Read(m_PC.Register) + m_IY))); m_PC.Register++; cycles = 19; break;
             }
             return cycles;
         }
@@ -898,7 +921,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States	4 MHz E.T.
             //	1			4			1.00
             //Condition Bits Affected: None
-            m_programCounter.Register = m_HL.Register;
+            m_PC.Register = m_HL.Register;
             return 4;
         }
 
@@ -912,7 +935,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	3			10 (4, 3, 3)	2.50
             //Condition Bits Affected: None
-            m_programCounter.Register = getNN();
+            m_PC.Register = getNN();
             return 10;
         }
 
@@ -937,24 +960,28 @@ namespace ZXEmulatorLibrary
             return 6;
         }
 
+        /// <summary>
+        /// The contents of the register pair qq are pushed to the external memory
+        /// LIFO (last-in, first-out) Stack. The Stack Pointer (SP) register pair holds the
+        /// 16-bit address of the current top of the Stack. This instruction first
+        /// decrements SP and loads the high order byte of register pair qq to the
+        /// memory address specified by the SP. The SP is decremented again and
+        /// loads the low order byte of qq to the memory location corresponding to this
+        /// new address in the SP. The operand qq identifies register pair BC, DE, HL,
+        /// or AF, assembled as follows in the object code:
+        /// Pair qq
+        /// BC 00
+        /// DE 01
+        /// HL 10
+        /// AF 11
+        /// M Cycles	T States		4 MHz E.T.
+        /// 3			11 (5, 3, 3)	2.75
+        //Condition Bits Affected: None
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
         private uint push_qq(RegisterPairAF reg)
         {
-            //Description: The contents of the register pair qq are pushed to the external memory
-            //LIFO (last-in, first-out) Stack. The Stack Pointer (SP) register pair holds the
-            //16-bit address of the current top of the Stack. This instruction first
-            //decrements SP and loads the high order byte of register pair qq to the
-            //memory address specified by the SP. The SP is decremented again and
-            //loads the low order byte of qq to the memory location corresponding to this
-            //new address in the SP. The operand qq identifies register pair BC, DE, HL,
-            //or AF, assembled as follows in the object code:
-            //Pair qq
-            //	BC 00
-            //	DE 01
-            //	HL 10
-            //	AF 11
-            //	M Cycles	T States		4 MHz E.T.
-            //	3			11 (5, 3, 3)	2.75
-            //Condition Bits Affected: None
             RegisterPair data = new RegisterPair();
             switch(reg)
             {
@@ -1063,10 +1090,10 @@ namespace ZXEmulatorLibrary
             //	4			14 (4, 4, 3, 3)	3.50
             //Condition Bits Affected: None
             m_IY = 0x0000;
-            m_IY |= (short)(m_bus.Read(m_programCounter.Register) & 0x00FF);
-            m_programCounter.Register++;
-            m_IY |= (short)(m_bus.Read(m_programCounter.Register) << 8);
-            m_programCounter.Register++;
+            m_IY |= (short)(m_bus.Read(m_PC.Register) & 0x00FF);
+            m_PC.Register++;
+            m_IY |= (short)(m_bus.Read(m_PC.Register) << 8);
+            m_PC.Register++;
             return 14;
         }
 
@@ -1164,10 +1191,10 @@ namespace ZXEmulatorLibrary
             //Condition Bits Affected: None
             ushort nn = getNN();
             m_SP.Register--;
-            m_bus.Write(m_SP.Register, m_programCounter.Hi);
+            m_bus.Write(m_SP.Register, m_PC.Hi);
             m_SP.Register--;
-            m_bus.Write(m_SP.Register, m_programCounter.Lo);
-            m_programCounter.Register = nn;
+            m_bus.Write(m_SP.Register, m_PC.Lo);
+            m_PC.Register = nn;
             return 17;
         }
 
@@ -1212,9 +1239,9 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	3			10 (4, 3, 3)	2.50
             //Condition Bits Affected: None	
-            m_programCounter.Lo = m_bus.Read(m_SP.Register);
+            m_PC.Lo = m_bus.Read(m_SP.Register);
             m_SP.Register++;
-            m_programCounter.Hi = m_bus.Read(m_SP.Register);
+            m_PC.Hi = m_bus.Read(m_SP.Register);
             m_SP.Register++;
             return 10;
         }
@@ -1255,9 +1282,9 @@ namespace ZXEmulatorLibrary
             uint cycles = 5;
             if (check_condition(flg))
             {
-                m_programCounter.Lo = m_bus.Read(m_SP.Register);
+                m_PC.Lo = m_bus.Read(m_SP.Register);
                 m_SP.Register++;
-                m_programCounter.Hi = m_bus.Read(m_SP.Register);
+                m_PC.Hi = m_bus.Read(m_SP.Register);
                 m_SP.Register++;
                 cycles = 11;
             }
@@ -1373,6 +1400,51 @@ namespace ZXEmulatorLibrary
             return 4;
         }
 
+        /// <summary>
+        /// The current Program Counter (PC) contents are pushed onto the external memory stack,
+        /// and the Page 0 memory location assigned by operand p is loaded to the PC. Program execution
+        /// then begins with the op code in the address now pointed to by PC. The push is performed
+        /// by first decrementing the contents of the Stack Pointer (SP), loading the high-order
+        /// byte of PC to the memory address now pointed to by SP, decrementing SP again, and loading
+        /// the low-order byte of PC to the address now pointed to by SP. The Restart instruction
+        /// allows for a jump to one of eight addresses indicated in the following table. The operand p
+        /// is assembled to the object code using the corresponding T state.
+        /// Because all addresses are stored in Page 0 of memory, the high-order byte of PC is loaded
+        /// with 00h. The number selected from the p column of the table is loaded to the low-order
+        /// byte of PC.
+        /// p t
+        /// 00h 000
+        /// 08h 001
+        /// 10h 010
+        /// 18h 011
+        /// 20h 100
+        /// 28h 101
+        /// 30h 110
+        /// 38h 111
+        /// M Cycles    T States        4 MHz E.T.
+        /// 3           11 (5, 3, 3)    2.75
+        /// </summary>
+        /// <param name="location"></param>
+        /// <returns></returns>
+        private uint rst_p(ResetLocation location)
+        {
+            m_SP.Register--;
+            m_bus.Write(m_SP.Register, m_PC.Hi);
+            m_SP.Register--;
+            m_bus.Write(m_SP.Register, m_PC.Lo);
+            switch(location)
+            {
+                case ResetLocation.Addr00h: m_PC.Register = 0x00; break;
+                case ResetLocation.Addr08h: m_PC.Register = 0x08; break;
+                case ResetLocation.Addr10h: m_PC.Register = 0x10; break;
+                case ResetLocation.Addr18h: m_PC.Register = 0x18; break;
+                case ResetLocation.Addr20h: m_PC.Register = 0x20; break;
+                case ResetLocation.Addr28h: m_PC.Register = 0x28; break;
+                case ResetLocation.Addr30h: m_PC.Register = 0x30; break;
+                case ResetLocation.Addr38h: m_PC.Register = 0x38; break;
+            }
+            return 3;
+        }
 
         private void incrementR()
         {
@@ -1382,18 +1454,18 @@ namespace ZXEmulatorLibrary
         private byte getN()
         {
             byte n;
-            n = m_bus.Read(m_programCounter.Register);
-            m_programCounter.Register++;
+            n = m_bus.Read(m_PC.Register);
+            m_PC.Register++;
             return n;
         }
 
         private ushort getNN()
         {
             RegisterPair nn = new RegisterPair();
-            nn.Lo = m_bus.Read(m_programCounter.Register);
-            m_programCounter.Register++;
-            nn.Hi = m_bus.Read(m_programCounter.Register);
-            m_programCounter.Register++;
+            nn.Lo = m_bus.Read(m_PC.Register);
+            m_PC.Register++;
+            nn.Hi = m_bus.Read(m_PC.Register);
+            m_PC.Register++;
             return nn.Register;
         }
 

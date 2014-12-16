@@ -55,10 +55,11 @@ namespace ZXEmulatorLibrary.ZX80
                 return m_ram.Read((ushort)(address - m_topOfRom));
             }
 
-            // ZX80 hardware for video
-
             // bit 15 of address is set >0x8000 so mirror ram
-            byte data = ReadMemory((ushort) (address - m_ram.Size));
+            byte data = ReadMemory((ushort)(address - m_ram.Size));
+
+            // ZX80 hardware for video (only do this when 'executing' opcode?)
+
             // if bit 6 is 1 return opcode
             if ((0x40 & data) == 0x40)
             {

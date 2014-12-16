@@ -9,8 +9,19 @@ namespace ZXEmulatorLibrary.ZX80
 {
     public class Hardware : IHardware
     {
-        private uint m_videoShiftPeriod = 4;
-        private uint m_videoShiftCounter;
+        /// <summary>
+        /// The interrupt triggers the start of the display signal and the CPU interrupt
+        /// this is supposed to happen every 64us (0.000064s), the cpu clock is 3.21Mhz
+        /// (3210000hz), this gives 205.44 cycles per interrupt.
+        /// </summary>
+        private const uint INTERRUPT_PERIOD = 205;
+        private uint m_interruptCounter;
+
+        /// <summary>
+        /// The video hardware shifts 8 bits to the display about every 4 cycles
+        /// </summary>
+        private const uint VIDEO_PEROID = 4;
+        private uint m_videoCounter;
 
         private bool m_running = true;
 
@@ -48,19 +59,29 @@ namespace ZXEmulatorLibrary.ZX80
         public void Run()
         {
             uint cycles = 0;
-            m_videoShiftCounter = 0;
-
+            m_interruptCounter = 0;
+            m_videoCounter = 0;
+            
             do
             {
-                m_videoShiftCounter += cycles;
-                while (m_videoShiftCounter > m_videoShiftPeriod)
+                bool interrupt = false;
+
+                m_interruptCounter += cycles;
+                while (m_interruptCounter > INTERRUPT_PERIOD)
                 {
-                    m_videoShiftCounter -= m_videoShiftPeriod;
+                    m_interruptCounter -= INTERRUPT_PERIOD;
+                    interrupt = true;
+                }
+
+                m_videoCounter += cycles;
+                while (m_videoCounter > VIDEO_PEROID)
+                {
+                    m_videoCounter -= VIDEO_PEROID;
                     m_video.Shift();
                 }
 
                 // TODO:  calculate elapsed time in milliseconds
-                cycles = m_cpu.Step();
+                cycles = m_cpu.Step(interrupt);
             } while (m_running);
         }
     }
