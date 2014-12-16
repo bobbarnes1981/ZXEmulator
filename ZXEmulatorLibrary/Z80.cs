@@ -8,9 +8,6 @@ namespace ZXEmulatorLibrary
 {
     public class Z80
     {
-        private int m_interruptPeriod = 28;
-        private int m_interruptCycles;
-
         private bool m_IFF1 = false;
         private bool m_IFF2 = false;
 
@@ -33,44 +30,36 @@ namespace ZXEmulatorLibrary
         private byte m_I = 0x00;
         private byte m_R = 0x00;
 
-        private Bus m_bus;
+        private IBus m_bus;
 
-        public Z80(Bus bus)
+        public Z80(IBus bus)
         {
             m_bus = bus;
         }
 
-        public void Step()
+        public uint Step(bool interrupt)
         {
-            // TODO:  calculate elapsed time in milliseconds
-
-            int requiredCycles = 1;
-            m_interruptCycles += requiredCycles;
+            if (interrupt)
+            {
+                switch (m_interruptMode)
+                {
+                    case InterruptMode.Mode_0: throw new NotImplementedException("Interrupt mode 0 not implemented"); break;
+                    case InterruptMode.Mode_1: m_programCounter.Register = 0x0038; m_halted = false; break;
+                    case InterruptMode.Mode_2: throw new NotImplementedException("Interrupt Mode 2 not implemented"); break;
+                }
+            }
 
             m_R = (byte)((m_R + 1) & 0x7F);
 
-            // should interrupts  be in this loop?
-            while (requiredCycles > 0)
+            if (m_halted)
             {
-                if (!m_halted)
-                {
-                    requiredCycles -= executeNextOpcode();
-                }
-                else
-                {
-                    requiredCycles -= nop();
-                }
+                return nop();
             }
 
-            switch(m_interruptMode)
-            {
-                case InterruptMode.Mode_0: throw new NotImplementedException("Interrupt mode 0 not implemented"); break;
-                case InterruptMode.Mode_1: if (m_interruptCycles > m_interruptPeriod) { m_interruptCycles = 0; m_programCounter.Register = 0x0038; m_halted = false; } break;
-                case InterruptMode.Mode_2: throw new NotImplementedException("Interrupt Mode 2 not implemented"); break;
-            }
+            return executeNextOpcode();
         }
 
-        private int executeNextOpcode()
+        private uint executeNextOpcode()
         {
             m_instructionRegister = m_bus.Read(m_programCounter.Register);
             //Console.WriteLine("0x{0:x4} 0x{1:x2}", m_programCounter.Register, m_instructionRegister);
@@ -78,9 +67,9 @@ namespace ZXEmulatorLibrary
             return executeOpcode();
         }
 
-        private int executeOpcode()
+        private uint executeOpcode()
         {
-            int cycles = 0;
+            uint cycles = 0;
             switch(m_instructionRegister)
             {
                 case 0x00: cycles = nop(); break;
@@ -210,9 +199,9 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
-        private int executeOpcodeDD()
+        private uint executeOpcodeDD()
         {
-            int cycles = 0;
+            uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
             m_programCounter.Register++;
             switch (opcode)
@@ -228,9 +217,9 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
-        private int executeOpcodeED()
+        private uint executeOpcodeED()
         {
-            int cycles = 0;
+            uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
             m_programCounter.Register++;
             switch (opcode)
@@ -258,9 +247,9 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
-        private int executeOpcodeFD()
+        private uint executeOpcodeFD()
         {
-            int cycles = 0;
+            uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
             m_programCounter.Register++;
             switch (opcode)
@@ -295,8 +284,8 @@ namespace ZXEmulatorLibrary
             m_programCounter.Register++;
             return nn.Register;
         }
-        
-        private int nop()
+
+        private uint nop()
         {
             //Description: The CPU performs no operation during this machine cycle.
             //	M Cycles	T States	4 MHz E.T.
@@ -305,7 +294,7 @@ namespace ZXEmulatorLibrary
             return 4;
         }
 
-        private int out__n__a()
+        private uint out__n__a()
         {
             //Description: The operand n is placed on the bottom half (A0 through A7) of the address
             //bus to select the I/O device at one of 256 possible ports. The contents of the
@@ -322,7 +311,7 @@ namespace ZXEmulatorLibrary
             return 11;
         }
 
-        private int ld_dd_nn(RegisterPairSP reg)
+        private uint ld_dd_nn(RegisterPairSP reg)
         {
             //The 2-byte integer nn is loaded to the dd register pair, where dd defines the
             //BC, DE, HL, or SP register pairs, assembled as follows in the object code:
@@ -346,7 +335,7 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
-        private int ld_r_r(Register reg1, Register reg2)
+        private uint ld_r_r(Register reg1, Register reg2)
         {
             //Description: The contents of any register r' are loaded to any other register r. r, r'
             //identifies any of the registers A, B, C, D, E, H, or L, assembled as follows
@@ -386,7 +375,7 @@ namespace ZXEmulatorLibrary
             return 4;
         }
 
-        private int ld_r_a()
+        private uint ld_r_a()
         {
             //Description: The contents of the Accumulator are loaded to the Memory Refresh
             //register R.
@@ -397,7 +386,7 @@ namespace ZXEmulatorLibrary
             return 9;
         }
 
-        private int jr_e()
+        private uint jr_e()
         {
             //Description: This instruction provides for unconditional branching to other segments of
             //a program. The value of the displacement e is added to the Program
@@ -413,7 +402,7 @@ namespace ZXEmulatorLibrary
             return 12;
         }
 
-        private int jr_nz_e()
+        private uint jr_nz_e()
         {
             //Description: This instruction provides for conditional branching to other segments of a
             //program depending on the results of a test on the Zero Flag. If the flag is
@@ -431,7 +420,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	2			7 (4, 3)		1.75
             //Condition Bits Affected: None
-            int cycles = 7;
+            uint cycles = 7;
             sbyte e = (sbyte)getN();
             if (check_condition(Condition.NZ))
             {
@@ -441,7 +430,7 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
-        private int jr_z_e()
+        private uint jr_z_e()
         {
             //Description: This instruction provides for conditional branching to other segments of a
             //program depending on the results of a test on the Zero Flag. If the flag is
@@ -458,7 +447,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	2			7 (4, 3)		1.75
             //Condition Bits Affected: None
-            int cycles = 7;
+            uint cycles = 7;
             sbyte e = (sbyte)getN();
             if (check_condition(Condition.Z))
             {
@@ -468,7 +457,7 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
-        private int jp_cc_nn(Condition flg)
+        private uint jp_cc_nn(Condition flg)
         {
             //Description: If condition cc is true, the instruction loads operand nn to register pair PC
             //(Program Counter), and the program continues with the instruction
@@ -499,7 +488,7 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
-        private int dec_m(RegisterExt reg)
+        private uint dec_m(RegisterExt reg)
         {
             //Register r
             //	B 000
@@ -522,7 +511,7 @@ namespace ZXEmulatorLibrary
             //	P/V is set if m was 80H before operation; reset otherwise
             //	N is set
             //	C is not affected
-            int cycles = 4;
+            uint cycles = 4;
             ushort mem;
             switch(reg)
             {
@@ -534,6 +523,7 @@ namespace ZXEmulatorLibrary
                 case RegisterExt.H: m_HL.Hi = dec(m_HL.Hi); break;
                 case RegisterExt.L: m_HL.Lo = dec(m_HL.Lo); break;
 
+                // TODO: if data cannot be written then the flags are set based on original value
                 case RegisterExt.HL: m_bus.Write(m_HL.Register, dec(m_bus.Read(m_HL.Register))); cycles = 11; break;
 
                 case RegisterExt.IXd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IX); m_programCounter.Register++; m_bus.Write(mem, dec(m_bus.Read(mem))); cycles = 23; break;
@@ -582,7 +572,7 @@ namespace ZXEmulatorLibrary
             return (byte)result;
         }
 
-        private int dec_ss(RegisterPairSP reg)
+        private uint dec_ss(RegisterPairSP reg)
         {
             //Description: The contents of register pair ss (any of the register pairs BC, DE, HL, or
             //SP) are decremented. Operand ss is specified as follows in the assembled
@@ -606,7 +596,7 @@ namespace ZXEmulatorLibrary
             return 6;
         }
 
-        private int ld_r_n(Register reg)
+        private uint ld_r_n(Register reg)
         {
             //Description: The 8-bit integer n is loaded to any register r, where r identifies register A,
             //B, C, D, E, H, or L, assembled as follows in the object code:
@@ -635,7 +625,7 @@ namespace ZXEmulatorLibrary
             return 7;
         }
 
-        private int inc_ss(RegisterPairSP reg)
+        private uint inc_ss(RegisterPairSP reg)
         {
             //Description: The contents of register pair ss (any of register pairs BC, DE, HL, or SP) 
             //are incremented. Operand ss is specified as follows in the assembled 
@@ -659,7 +649,7 @@ namespace ZXEmulatorLibrary
             return 6;
         }
 
-        private int cp_s(RegisterExtN reg)
+        private uint cp_s(RegisterExtN reg)
         {
             //Register r
             //	B 000
@@ -685,7 +675,7 @@ namespace ZXEmulatorLibrary
             //	P/V is set if overflow; reset otherwise
             //	N is set
             //	C is set if borrow; reset otherwise
-            int cycles = 4;
+            uint cycles = 4;
             switch(reg)
             {
                 case RegisterExtN.B: cp(m_AF.Hi, m_BC.Hi); break;
@@ -736,7 +726,7 @@ namespace ZXEmulatorLibrary
             }
         }
 
-        private int jp__hl__()
+        private uint jp__hl__()
         {
             //Description: The Program Counter (register pair PC) is loaded with the contents of the
             //HL register pair. The next instruction is fetched from the location
@@ -748,7 +738,7 @@ namespace ZXEmulatorLibrary
             return 4;
         }
 
-        private int jp_nn()
+        private uint jp_nn()
         {
             //Note: The first operand in this assembled object code is the low order
             //byte of a two-byte address.
@@ -762,7 +752,7 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
-        private int ld__hl__n()
+        private uint ld__hl__n()
         {
             //Description: Integer n is loaded to the memory address specified by the contents of the
             //HL register pair.
@@ -773,7 +763,7 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
-        private int ld_sp_hl()
+        private uint ld_sp_hl()
         {
             //Description: The contents of the register pair HL are loaded to the Stack Pointer (SP).
             //	M Cycles	T States	4 MHz E.T.
@@ -783,7 +773,7 @@ namespace ZXEmulatorLibrary
             return 6;
         }
 
-        private int push_qq(RegisterPairAF reg)
+        private uint push_qq(RegisterPairAF reg)
         {
             //Description: The contents of the register pair qq are pushed to the external memory
             //LIFO (last-in, first-out) Stack. The Stack Pointer (SP) register pair holds the
@@ -816,7 +806,7 @@ namespace ZXEmulatorLibrary
             return 11;
         }
 
-        private int pop_qq(RegisterPairAF reg)
+        private uint pop_qq(RegisterPairAF reg)
         {
             //Description: The top two bytes of the external memory LIFO (last-in, first-out) Stack
             //are popped to register pair qq. The Stack Pointer (SP) register pair holds
@@ -850,7 +840,7 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
-        private int ld_i_a()
+        private uint ld_i_a()
         {
             //Description: The contents of the Accumulator are loaded to the Interrupt Control Vector
             //Register, I.
@@ -861,7 +851,7 @@ namespace ZXEmulatorLibrary
             return 9;
         }
 
-        private int im_0()
+        private uint im_0()
         {
             //Description: The IM 0 instruction sets interrupt mode 0. In this mode, the interrupting
             //device can insert any instruction on the data bus for execution by the
@@ -875,7 +865,7 @@ namespace ZXEmulatorLibrary
             return 8;
         }
 
-        private int im_1()
+        private uint im_1()
         {
             //Description: The IM 1 instruction sets interrupt mode 1. In this mode, the processor
             //responds to an interrupt by executing a restart to location 0038H.
@@ -886,7 +876,7 @@ namespace ZXEmulatorLibrary
             return 8;
         }
 
-        private int im_2()
+        private uint im_2()
         {
             //Description: The IM 2 instruction sets the vectored interrupt mode 2. This mode allows
             //an indirect call to any memory location by an 8-bit vector supplied from the
@@ -901,7 +891,7 @@ namespace ZXEmulatorLibrary
             return 8;
         }
 
-        private int ld_iy_nn()
+        private uint ld_iy_nn()
         {
             //Description: Integer nn is loaded to the Index Register IY. The first n operand after the
             //Op Code is the low order byte.
@@ -916,7 +906,7 @@ namespace ZXEmulatorLibrary
             return 14;
         }
 
-        private int ld__nn__hl()
+        private uint ld__nn__hl()
         {
             //Description: The contents of the low order portion of register pair HL (register L) are
             //loaded to memory address (nn), and the contents of the high order portion
@@ -931,7 +921,7 @@ namespace ZXEmulatorLibrary
             return 16;
         }
 
-        private int ld_hl__nn__()
+        private uint ld_hl__nn__()
         {
             //Description: The contents of memory address (nn) are loaded to the low order portion of
             //register pair HL (register L), and the contents of the next highest memory
@@ -946,7 +936,7 @@ namespace ZXEmulatorLibrary
             return 16;
         }
 
-        private int ld_iyd_n()
+        private uint ld_iyd_n()
         {
             //Description: Integer n is loaded to the memory location specified by the contents of the
             //Index Register summed with the two’s complement displacement integer d.
@@ -959,7 +949,7 @@ namespace ZXEmulatorLibrary
             return 19;
         }
 
-        private int ld_r_iyd(Register reg)
+        private uint ld_r_iyd(Register reg)
         {
             //Description: The operand (lY+d) (the contents of the Index Register IY summed with a
             //two’s complement displacement integer (d) is loaded to register r, where r
@@ -991,7 +981,7 @@ namespace ZXEmulatorLibrary
             return 19;
         }
 
-        private int call_nn()
+        private uint call_nn()
         {
             //Description: The current contents of the Program Counter (PC) are pushed onto the top
             //of the external memory stack. The operands nn are then loaded to the PC to
@@ -1017,7 +1007,7 @@ namespace ZXEmulatorLibrary
             return 17;
         }
 
-        private int ld__nn__dd(RegisterPairSP reg)
+        private uint ld__nn__dd(RegisterPairSP reg)
         {
             //Description: The low order byte of register pair dd is loaded to memory address (nn); the
             //upper byte is loaded to memory address (nn+1). Register pair dd defines
@@ -1046,7 +1036,7 @@ namespace ZXEmulatorLibrary
             return 20;
         }
 
-        private int ret()
+        private uint ret()
         {
             //Description: The byte at the memory location specified by the contents of the Stack
             //Pointer (SP) register pair is moved to the low order eight bits of the
@@ -1065,7 +1055,7 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
-        private int ret_cc(Condition flg)
+        private uint ret_cc(Condition flg)
         {
             //Description: If condition cc is true, the byte at the memory location specified by the
             //contents of the Stack Pointer (SP) register pair is moved to the low order
@@ -1098,7 +1088,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States		4 MHz E.T.
             //	1			5				1.25
             //Condition Bits Affected: None
-            int cycles = 5;
+            uint cycles = 5;
             if (check_condition(flg))
             {
                 m_programCounter.Lo = m_bus.Read(m_SP.Register);
@@ -1127,7 +1117,7 @@ namespace ZXEmulatorLibrary
             return ret;
         }
 
-        private int halt()
+        private uint halt()
         {
             //Description: The HALT instruction suspends CPU operation until a subsequent interrupt
             //or reset is received. While in the HALT state, the processor executes NOPs
@@ -1139,7 +1129,7 @@ namespace ZXEmulatorLibrary
             return 4;
         }
 
-        private int ei()
+        private uint ei()
         {
             //Description: The enable interrupt instruction sets both interrupt enable flip flops (IFFI
             //and IFF2) to a logic 1, allowing recognition of any maskable interrupt. Note

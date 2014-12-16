@@ -39,7 +39,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Bus.cs" />
+    <Compile Include="ZX80\Bus.cs" />
     <Compile Include="FlagMask.cs" />
     <Compile Include="Condition.cs" />
     <Compile Include="HardwareType.cs" />
@@ -53,10 +53,14 @@
     <Compile Include="InterruptMode.cs" />
     <Compile Include="RegisterExt.cs" />
     <Compile Include="ULA.cs" />
+    <Compile Include="ZX80\Video.cs" />
     <Compile Include="Z80.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ZX80.cs" />
-    <Compile Include="ZX81.cs" />
+    <Compile Include="ZX80\Hardware.cs" />
+    <Compile Include="IBus.cs" />
+    <Compile Include="ZX81\Hardware.cs" />
+    <Compile Include="ZX81\Bus.cs" />
+    <Compile Include="ZX81\Video.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

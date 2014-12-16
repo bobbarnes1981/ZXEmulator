@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 
-namespace ZXEmulatorLibrary
+namespace ZXEmulatorLibrary.ZX81
 {
-    public class ZX80 : IHardware
+    public class Hardware : IHardware
     {
         private int m_videoWidth = 256;
         private int m_videoHeight = 192;
@@ -27,23 +23,26 @@ namespace ZXEmulatorLibrary
 
         private Memory m_rom;
         private Memory m_ram;
+        private Video m_video;
         private Bus m_bus;
         private Z80 m_cpu;
 
-        public ZX80(string path)
+        private ULA m_ula;
+
+        public Hardware(string path)
         {
             m_rom = new Memory(0x4000, File.ReadAllBytes(path));
-            m_ram = new Memory(0xBFFF);
-            m_bus = new Bus(m_rom, m_ram);
+            m_ram = new Memory(0x4000);
+            m_video = new Video();
+            m_bus = new Bus(m_rom, m_ram, m_video);
             m_cpu = new Z80(m_bus);
+
+            m_ula = new ULA();
         }
 
         public void Run()
         {
-            do
-            {
-                m_cpu.Step();
-            } while (true);
+            throw new NotImplementedException();
         }
     }
 }

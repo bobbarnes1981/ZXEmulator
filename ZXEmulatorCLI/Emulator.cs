@@ -15,10 +15,10 @@ namespace ZXEmulatorCLI
             switch(hardware)
             {
                 case HardwareType.ZX80:
-                    m_hardware = new ZX80(path);
+                    m_hardware = new ZXEmulatorLibrary.ZX80.Hardware(path);
                     break;
                 case HardwareType.ZX81:
-                    m_hardware = new ZX81(path);
+                    m_hardware = new ZXEmulatorLibrary.ZX81.Hardware(path);
                     break;
                 default:
                     throw new NotImplementedException(hardware.ToString());

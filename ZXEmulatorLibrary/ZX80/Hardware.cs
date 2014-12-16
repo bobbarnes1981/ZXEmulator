@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 
-namespace ZXEmulatorLibrary
+namespace ZXEmulatorLibrary.ZX80
 {
-    public class ZX81 : IHardware
+    public class Hardware : IHardware
     {
+        private int m_interruptPeriod = 28;
+
+        private bool m_running = true;
+
         private int m_videoWidth = 256;
         private int m_videoHeight = 192;
 
@@ -27,27 +31,33 @@ namespace ZXEmulatorLibrary
 
         private Memory m_rom;
         private Memory m_ram;
+        private Video m_video;
         private Bus m_bus;
         private Z80 m_cpu;
 
-        private ULA m_ula;
-
-        public ZX81(string path)
+        public Hardware(string path)
         {
             m_rom = new Memory(0x4000, File.ReadAllBytes(path));
-            m_ram = new Memory(0xBFFF);
-            m_bus = new Bus(m_rom, m_ram);
+            m_ram = new Memory(0x4000);
+            m_video = new Video();
+            m_bus = new Bus(m_rom, m_ram, m_video);
             m_cpu = new Z80(m_bus);
-
-            m_ula = new ULA();
         }
 
         public void Run()
         {
+            uint cycles = 0;
+            bool interrupt = false;
             do
             {
-                m_cpu.Step();
-            } while (true);
+                // TODO:  calculate elapsed time in milliseconds
+                cycles += m_cpu.Step(interrupt);
+                interrupt = cycles%m_interruptPeriod == 0;
+                if (cycles%4 == 0)
+                {
+                    m_video.Shift();
+                }
+            } while (m_running);
         }
     }
 }
