@@ -1252,23 +1252,22 @@ namespace ZXEmulatorLibrary
         private uint sub_s(RegisterExtN reg)
         {
             uint cycles = 4;
-            ushort mem;
             switch (reg)
             {
                 case RegisterExtN.A: m_AF.Hi = sub(m_AF.Hi, m_AF.Hi); break;
-                case RegisterExtN.B: m_BC.Hi = sub(m_AF.Hi, m_BC.Hi); break;
-                case RegisterExtN.C: m_BC.Lo = sub(m_AF.Hi, m_BC.Lo); break;
-                case RegisterExtN.D: m_DE.Hi = sub(m_AF.Hi, m_DE.Hi); break;
-                case RegisterExtN.E: m_DE.Lo = sub(m_AF.Hi, m_DE.Lo); break;
-                case RegisterExtN.H: m_HL.Hi = sub(m_AF.Hi, m_HL.Hi); break;
-                case RegisterExtN.L: m_HL.Lo = sub(m_AF.Hi, m_HL.Lo); break;
+                case RegisterExtN.B: m_AF.Hi = sub(m_AF.Hi, m_BC.Hi); break;
+                case RegisterExtN.C: m_AF.Hi = sub(m_AF.Hi, m_BC.Lo); break;
+                case RegisterExtN.D: m_AF.Hi = sub(m_AF.Hi, m_DE.Hi); break;
+                case RegisterExtN.E: m_AF.Hi = sub(m_AF.Hi, m_DE.Lo); break;
+                case RegisterExtN.H: m_AF.Hi = sub(m_AF.Hi, m_HL.Hi); break;
+                case RegisterExtN.L: m_AF.Hi = sub(m_AF.Hi, m_HL.Lo); break;
 
-                case RegisterExtN.HL: m_bus.Write(m_HL.Register, dec(m_bus.Read(m_HL.Register))); cycles = 7; break;
+                case RegisterExtN.HL: m_AF.Hi = sub(m_AF.Hi, m_bus.Read(m_HL.Register)); cycles = 7; break;
 
-                case RegisterExtN.N: sub(m_AF.Hi, getN()); cycles = 7; break;
+                case RegisterExtN.N: m_AF.Hi = sub(m_AF.Hi, getN()); cycles = 7; break;
 
-                case RegisterExtN.IXd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IX); m_programCounter.Register++; m_bus.Write(mem, sub(m_AF.Hi, m_bus.Read(mem))); cycles = 19; break;
-                case RegisterExtN.IYd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IY); m_programCounter.Register++; m_bus.Write(mem, sub(m_AF.Hi, m_bus.Read(mem))); cycles = 19; break;
+                case RegisterExtN.IXd: m_AF.Hi = sub(m_AF.Hi, m_bus.Read((ushort)(m_IX + (sbyte)getN()))); cycles = 19; break;
+                case RegisterExtN.IYd: m_AF.Hi = sub(m_AF.Hi, m_bus.Read((ushort)(m_IY + (sbyte)getN()))); cycles = 19; break;
             }
             return cycles;
         }
@@ -1354,14 +1353,14 @@ namespace ZXEmulatorLibrary
 
         private byte dec(byte input)
         {
-            //Condition Bits Affected:
-            //	S is set if result is negative; reset otherwise
-            //	Z is set if result is zero; reset otherwise
-            //	H is set if borrow from bit 4, reset otherwise
-            //	P/V is set if m was 80H before operation; reset otherwise
-            //	N is set
-            //	C is not affected
-            char result = (char)input;
+            // Condition Bits Affected:
+            // S is set if result is negative; reset otherwise
+            // Z is set if result is zero; reset otherwise
+            // H is set if borrow from bit 4, reset otherwise
+            // P/V is set if m was 80H before operation; reset otherwise
+            // N is set
+            // C is not affected
+            sbyte result = (sbyte)input;
             result--;
             if (result < 0)
             {
@@ -1394,7 +1393,41 @@ namespace ZXEmulatorLibrary
 
         private byte sub(byte inputA, byte inputB)
         {
-            throw new NotImplementedException();
+            // Condition Bits Affected
+            // S is set if result is negative; otherwise, it is reset.
+            // Z is set if result is 0; otherwise, it is reset.
+            // H is set if borrow from bit 4; otherwise, it is reset.
+            // P/V is set if overflow; otherwise, it is reset.
+            // N is set.
+            // C is set if borrow; otherwise, it is reset.
+            sbyte result = (sbyte)((sbyte)inputA - (sbyte)inputB);
+            if (result < 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NS;
+            }
+            if (result == 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            //TODO: H FLAG
+            if (result == 0x7F)
+            {
+                m_AF.Lo |= (byte)FlagMask.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.PO;
+            }
+            m_AF.Lo |= (byte)FlagMask.N;
+            return (byte)result;
         }
 
         private bool check_condition(Condition flg)
