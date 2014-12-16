@@ -72,6 +72,8 @@ namespace ZXEmulatorLibrary
 
             {0x76, "halt"},
 
+            {0x78, "ld_r_r A B"},
+
             {0xB8, "cp_s B"},
             {0xB9, "cp_s C"},
             {0xBA, "cp_s D"},
@@ -297,6 +299,8 @@ namespace ZXEmulatorLibrary
                 case 0x69: cycles = ld_r_r(Register.L, Register.C); break;
 
                 case 0x76: cycles = halt(); break;
+
+                case 0x78: cycles = ld_r_r(Register.A, Register.B); break;
 
                 case 0xB8: cycles = cp_s(RegisterExtN.B); break;
                 case 0xB9: cycles = cp_s(RegisterExtN.C); break;
