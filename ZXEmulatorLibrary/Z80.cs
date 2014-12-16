@@ -648,29 +648,33 @@ namespace ZXEmulatorLibrary
             return 10;
         }
 
+        /// <summary>
+        /// Register r
+        /// B 000
+        /// C 001
+        /// D 010
+        /// E 011
+        /// H 100
+        /// L 101
+        /// A 111
+        /// The byte specified by the m operand is decremented.
+        /// Instruction	M Cycles	T States				4 MHz E.T.
+        /// DEC r		1 			4						1.00
+        /// DEC (HL)	3 			11 (4, 4, 3				2.75
+        /// DEC (IX+d)	6 			23 (4, 4, 3, 5, 4, 3)	5.75
+        /// DEC (lY+d)	6			23 (4, 4, 3, 5, 4, 3)	5.75
+        /// Condition Bits Affected:
+        /// S is set if result is negative; reset otherwise
+        /// Z is set if result is zero; reset otherwise
+        /// H is set if borrow from bit 4, reset otherwise
+        /// P/V is set if m was 80H before operation; reset otherwise
+        /// N is set
+        /// C is not affected
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
         private uint dec_m(RegisterExt reg)
         {
-            //Register r
-            //	B 000
-            //	C 001
-            //	D 010
-            //	E 011
-            //	H 100
-            //	L 101
-            //	A 111
-            //Description: The byte specified by the m operand is decremented.
-            //Instruction	M Cycles	T States				4 MHz E.T.
-            //	DEC r		1 			4						1.00
-            //	DEC (HL)	3 			11 (4, 4, 3				2.75
-            //	DEC (IX+d)	6 			23 (4, 4, 3, 5, 4, 3)	5.75
-            //	DEC (lY+d)	6			23 (4, 4, 3, 5, 4, 3)	5.75
-            //Condition Bits Affected:
-            //	S is set if result is negative; reset otherwise
-            //	Z is set if result is zero; reset otherwise
-            //	H is set if borrow from bit 4, reset otherwise
-            //	P/V is set if m was 80H before operation; reset otherwise
-            //	N is set
-            //	C is not affected
             uint cycles = 4;
             ushort mem;
             switch(reg)
@@ -1220,6 +1224,14 @@ namespace ZXEmulatorLibrary
         }
 
         /// <summary>
+        /// Register r
+        /// B 000
+        /// C 001
+        /// D 010
+        /// E 011
+        /// H 100
+        /// L 101
+        /// A 111
         /// The s operand is subtracted from the contents of the Accumulator, and the 
         /// result is stored in the Accumulator.
         /// Instruction M Cycle T States            4 MHz E.T.
@@ -1265,8 +1277,8 @@ namespace ZXEmulatorLibrary
         /// The HALT instruction suspends CPU operation until a subsequent interrupt
         /// or reset is received. While in the HALT state, the processor executes NOPs
         /// to maintain memory refresh logic.
-        /// 	M Cycles	T States	4 MHz E.T.
-        /// 	1			4			1.00
+        /// M Cycles	T States	4 MHz E.T.
+        /// 1			4			1.00
         /// Condition Bits Affected: None
         /// </summary>
         /// <returns></returns>
@@ -1281,8 +1293,8 @@ namespace ZXEmulatorLibrary
         /// and IFF2) to a logic 1, allowing recognition of any maskable interrupt. Note
         /// that during the execution of this instruction and the following instruction,
         /// maskable interrupts are disabled.
-        /// 	M Cycles	T States	4 MHz E.T.
-        /// 	1			4			1.00
+        /// M Cycles	T States	4 MHz E.T.
+        /// 1			4			1.00
         /// Condition Bits Affected: None
         /// </summary>
         /// <returns></returns>
@@ -1296,8 +1308,8 @@ namespace ZXEmulatorLibrary
         /// <summary>
         /// Each 2-byte value in register pairs BC, DE, and HL is exchanged with the 2-
         /// byte value in BC', DE', and HL', respectively.
-        ///     M Cycles    T States    4 MHz E.T.
-        ///     1           4           1.00
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
         /// Condition Bits Affected
         /// None.
         /// </summary>
