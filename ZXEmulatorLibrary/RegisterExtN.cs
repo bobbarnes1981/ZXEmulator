@@ -9,7 +9,6 @@ namespace ZXEmulatorLibrary
     public enum RegisterExtN
     {
         A,
-        F,
         B,
         C,
         D,
@@ -20,7 +19,7 @@ namespace ZXEmulatorLibrary
         IXd,
         IYd,
 
-        HL, //Memory
-        N //Memory
+        HL,
+        N
     }
 }

@@ -8,18 +8,17 @@ namespace ZXEmulatorLibrary
 {
     public enum RegisterExt
     {
-        A,
-        F,
         B,
         C,
         D,
         E,
         H,
         L,
+        A,
 
         IXd,
         IYd,
 
-        HL //Memory
+        HL
     }
 }

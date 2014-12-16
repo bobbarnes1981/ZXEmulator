@@ -165,6 +165,8 @@ namespace ZXEmulatorLibrary
             {0x21, "ld_iy_nn"},
 
             {0x36, "ld_iyd_n"},
+
+            {0x96, "sub s IY+d"},
         }; 
 
         private bool m_IFF1 = false;
@@ -432,6 +434,8 @@ namespace ZXEmulatorLibrary
                 case 0x35: cycles = dec_m(RegisterExt.IYd); break;
                 case 0x36: cycles = ld_iyd_n(); break;
 
+                case 0x96: cycles = sub_s(RegisterExtN.IYd); break;
+
                 case 0xBE: cycles = cp_s(RegisterExtN.IYd); break;
 
                 default:
@@ -679,7 +683,6 @@ namespace ZXEmulatorLibrary
                 case RegisterExt.H: m_HL.Hi = dec(m_HL.Hi); break;
                 case RegisterExt.L: m_HL.Lo = dec(m_HL.Lo); break;
 
-                // TODO: if data cannot be written then the flags are set based on original value
                 case RegisterExt.HL: m_bus.Write(m_HL.Register, dec(m_bus.Read(m_HL.Register))); cycles = 11; break;
 
                 case RegisterExt.IXd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IX); m_programCounter.Register++; m_bus.Write(mem, dec(m_bus.Read(mem))); cycles = 23; break;
@@ -1217,6 +1220,48 @@ namespace ZXEmulatorLibrary
         }
 
         /// <summary>
+        /// The s operand is subtracted from the contents of the Accumulator, and the 
+        /// result is stored in the Accumulator.
+        /// Instruction M Cycle T States            4 MHz E.T.
+        /// SUB r       1       4                   1.00
+        /// SUB n       2       7 (4, 3)            1.75
+        /// SUB (HL)    2       7 (4, 3)            1.75
+        /// SUB (IX+d)  5       19 (4, 4, 3, 5, 3)  4.75
+        /// SUB (lY+d)  5       19 (4, 4, 3, 5, 3)  4.75
+        /// Condition Bits Affected
+        /// S is set if result is negative; otherwise, it is reset.
+        /// Z is set if result is 0; otherwise, it is reset.
+        /// H is set if borrow from bit 4; otherwise, it is reset.
+        /// P/V is set if overflow; otherwise, it is reset.
+        /// N is set.
+        /// C is set if borrow; otherwise, it is reset.
+        /// </summary>
+        /// <returns></returns>
+        private uint sub_s(RegisterExtN reg)
+        {
+            uint cycles = 4;
+            ushort mem;
+            switch (reg)
+            {
+                case RegisterExtN.A: m_AF.Hi = sub(m_AF.Hi, m_AF.Hi); break;
+                case RegisterExtN.B: m_BC.Hi = sub(m_AF.Hi, m_BC.Hi); break;
+                case RegisterExtN.C: m_BC.Lo = sub(m_AF.Hi, m_BC.Lo); break;
+                case RegisterExtN.D: m_DE.Hi = sub(m_AF.Hi, m_DE.Hi); break;
+                case RegisterExtN.E: m_DE.Lo = sub(m_AF.Hi, m_DE.Lo); break;
+                case RegisterExtN.H: m_HL.Hi = sub(m_AF.Hi, m_HL.Hi); break;
+                case RegisterExtN.L: m_HL.Lo = sub(m_AF.Hi, m_HL.Lo); break;
+
+                case RegisterExtN.HL: m_bus.Write(m_HL.Register, dec(m_bus.Read(m_HL.Register))); cycles = 7; break;
+
+                case RegisterExtN.N: sub(m_AF.Hi, getN()); cycles = 7; break;
+
+                case RegisterExtN.IXd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IX); m_programCounter.Register++; m_bus.Write(mem, sub(m_AF.Hi, m_bus.Read(mem))); cycles = 19; break;
+                case RegisterExtN.IYd: mem = (byte)(m_bus.Read(m_programCounter.Register) + m_IY); m_programCounter.Register++; m_bus.Write(mem, sub(m_AF.Hi, m_bus.Read(mem))); cycles = 19; break;
+            }
+            return cycles;
+        }
+
+        /// <summary>
         /// The HALT instruction suspends CPU operation until a subsequent interrupt
         /// or reset is received. While in the HALT state, the processor executes NOPs
         /// to maintain memory refresh logic.
@@ -1333,6 +1378,11 @@ namespace ZXEmulatorLibrary
             }
             m_AF.Lo |= (byte)FlagMask.N;
             return (byte)result;
+        }
+
+        private byte sub(byte inputA, byte inputB)
+        {
+            throw new NotImplementedException();
         }
 
         private bool check_condition(Condition flg)
