@@ -114,12 +114,13 @@ namespace ZXEmulatorLibrary.ZX80
             if (address < m_topOfRam)
             {
                 m_ram.Write((ushort)(address - m_topOfRom), data);
+                return;
             }
-            else
-            {
-                //throw new Exception(string.Format("Invalid memory address {0:x4}", address));
-                return; // just don't do anything
-            }
+
+            // ZX80 hardware for video
+
+            // bit 15 of address is set >0x8000 so mirror ram
+            WriteMemory((ushort)(address - m_ram.Size), data);
         }
     }
 }
