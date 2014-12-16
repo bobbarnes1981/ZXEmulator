@@ -107,7 +107,8 @@ namespace ZXEmulatorLibrary.ZX80
         {
             if (address < m_topOfRom)
             {
-                throw new Exception(string.Format("Attempt to write to ROM address {0:x4}", address));
+                //throw new Exception(string.Format("Attempt to write to ROM address {0:x4}", address));
+                return; // just don't do anything
             }
             
             if (address < m_topOfRam)
@@ -117,7 +118,7 @@ namespace ZXEmulatorLibrary.ZX80
             else
             {
                 //throw new Exception(string.Format("Invalid memory address {0:x4}", address));
-                return;
+                return; // just don't do anything
             }
         }
     }

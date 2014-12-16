@@ -8,6 +8,163 @@ namespace ZXEmulatorLibrary
 {
     public class Z80
     {
+        private Dictionary<byte, string> m_opCodes = new Dictionary<byte, string>
+        {
+            {0x00, "nop"},
+            {0x01, "ld_dd_nn BC"},
+
+            {0x03, "inc_ss BC"},
+
+            {0x05, "dec_m B"},
+            {0x06, "ld_r_n B"},
+
+            {0x0B, "dec_ss BC"},
+
+            {0x0D, "dec_m C"},
+            {0x0E, "ld_r_n C"},
+
+            {0x11, "ld_dd_nn DE"},
+
+            {0x13, "inc_ss DE"},
+
+            {0x15, "dec_m D"},
+            {0x16, "ld_r_n D"},
+
+            {0x18, "jr_e"},
+
+            {0x1B, "dec_ss DE"},
+
+            {0x1D, "dec_m E"},
+            {0x1E, "ld_r_n E"},
+
+            {0x20, "jr_nz_e"},
+            {0x21, "ld_dd_nn HL"},
+            {0x22, "ld__nn__hl"},
+
+            {0x23, "inc_ss HL"},
+
+            {0x25, "dec_m H"},
+            {0x26, "ld_r_n H"},
+
+            {0x28, "jr_z_e"},
+
+            {0x2A, "ld_hl__nn__"},
+            {0x2B, "dec_ss HL"},
+
+            {0x2D, "dec_m L"},
+            {0x2E, "ld_r_n L"},
+
+            {0x31, "ld_dd_nn SP"},
+
+            {0x33, "inc_ss SP"},
+
+            {0x35, "dec_m HL"},
+            {0x36, "ld__hl__n"},
+
+            {0x3B, "dec_ss SP"},
+
+            {0x3D, "dec_m A"},
+            {0x3E, "ld_r_n A"},
+
+            {0x60, "ld_r_r H B"},
+
+            {0x69, "ld_r_r L C"},
+
+            {0x76, "halt"},
+
+            {0xB8, "cp_s B"},
+            {0xB9, "cp_s C"},
+            {0xBA, "cp_s D"},
+            {0xBB, "cp_s E"},
+            {0xBC, "cp_s H"},
+            {0xBD, "cp_s L"},
+            {0xBE, "cp_s HL"},
+            {0xBF, "cp_s A"},
+
+            {0xC0, "ret_cc NZ"},
+            {0xC1, "pop_qq BC"},
+            {0xC2, "jp_cc_nn NZ"},
+            {0xC3, "jp_nn"},
+
+            {0xC5, "push_qq BC"},
+
+            {0xC8, "ret_cc Z"},
+            {0xC9, "ret"},
+            {0xCA, "jp_cc_nn Z"},
+
+            {0xCD, "call_nn"},
+
+            {0xD0, "ret_cc C"},
+            {0xD1, "pop_qq DE"},
+            {0xD2, "jp_cc_nn C"},
+            {0xD3, "out__n__a"},
+
+            {0xD5, "push_qq DE"},
+
+            {0xD8, "ret_cc C"},
+
+            {0xDA, "jp_cc_nn C"},
+            {0xDD, "DD"},
+
+            {0xE0, "ret_cc PO"},
+            {0xE1, "pop_qq HL"},
+            {0xE2, "jp_cc_nn PO"},
+            {0xE5, "push_qq HL"},
+
+            {0xE8, "ret_cc PE"},
+            {0xE9, "jp__hl__"},
+            {0xEA, "jp_cc_nn PE"},
+            {0xEB, "exx"},
+
+            {0xED, "ED"},
+
+            {0xF0, "ret_cc NS"},
+            {0xF1, "pop_qq AF"},
+            {0xF2, "jp_cc_nn NS"},
+
+            {0xF5, "push_qq AF"},
+
+            {0xF8, "ret_cc S"},
+            {0xF9, "ld_sp_hl"},
+            {0xFA, "jp_cc_nn S"},
+            {0xFB, "ei"},
+
+            {0xFD, "FD"},
+            {0xFE, "cp_s N"},
+        };
+
+        private Dictionary<byte, string> m_opCodesDD = new Dictionary<byte, string>
+        {
+
+        }; 
+
+        private Dictionary<byte, string> m_opCodesED = new Dictionary<byte, string>
+        {
+            {0x43, "ld__nn__dd BC"},
+
+            {0x46, "im_0"},
+            {0x47, "ld_i_a"},
+
+            {0x4F, "ld_r_a"},
+
+            {0x53, "ld__nn__dd DE"},
+
+            {0x56, "im_1"},
+
+            {0x5E, "im_2"},
+
+            {0x63, "ld__nn__dd HL"},
+
+            {0x73, "ld__nn__dd SP"},
+        };
+
+        private Dictionary<byte, string> m_opCodesFD = new Dictionary<byte, string>
+        {
+            {0x21, "ld_iy_nn"},
+
+            {0x36, "ld_iyd_n"},
+        }; 
+
         private bool m_IFF1 = false;
         private bool m_IFF2 = false;
 
@@ -20,8 +177,11 @@ namespace ZXEmulatorLibrary
 
         private RegisterPair m_AF = new RegisterPair();
         private RegisterPair m_BC = new RegisterPair();
+        private RegisterPair m__BC = new RegisterPair();
         private RegisterPair m_DE = new RegisterPair();
+        private RegisterPair m__DE = new RegisterPair();
         private RegisterPair m_HL = new RegisterPair();
+        private RegisterPair m__HL = new RegisterPair();
         private RegisterPair m_SP = new RegisterPair();
 
         private short m_IX;
@@ -32,10 +192,12 @@ namespace ZXEmulatorLibrary
 
         private IBus m_bus;
 
+
         public Z80(IBus bus)
         {
             m_bus = bus;
         }
+
 
         public uint Step(bool interrupt)
         {
@@ -59,13 +221,15 @@ namespace ZXEmulatorLibrary
             return executeNextOpcode();
         }
 
+
         private uint executeNextOpcode()
         {
             m_instructionRegister = m_bus.Read(m_programCounter.Register);
-            //Console.WriteLine("0x{0:x4} 0x{1:x2}", m_programCounter.Register, m_instructionRegister);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, m_instructionRegister, m_opCodes[m_instructionRegister]);
             m_programCounter.Register++;
             return executeOpcode();
         }
+
 
         private uint executeOpcode()
         {
@@ -108,13 +272,13 @@ namespace ZXEmulatorLibrary
                 case 0x25: cycles = dec_m(RegisterExt.H); break;
                 case 0x26: cycles = ld_r_n(Register.H); break;
 
+                case 0x28: cycles = jr_z_e(); break;
+
                 case 0x2A: cycles = ld_hl__nn__(); break;
                 case 0x2B: cycles = dec_ss(RegisterPairSP.HL); break;
 
                 case 0x2D: cycles = dec_m(RegisterExt.L); break;
                 case 0x2E: cycles = ld_r_n(Register.L); break;
-
-                case 0x28: cycles = jr_z_e(); break;
 
                 case 0x31: cycles = ld_dd_nn(RegisterPairSP.SP); break;
 
@@ -177,6 +341,8 @@ namespace ZXEmulatorLibrary
                 case 0xE9: cycles = jp__hl__(); break;
                 case 0xEA: cycles = jp_cc_nn(Condition.PE); break;
 
+                case 0xEB: cycles = exx(); break;
+
                 case 0xED: cycles = executeOpcodeED(); break;
 
                 case 0xF0: cycles = ret_cc(Condition.NS); break;
@@ -194,7 +360,7 @@ namespace ZXEmulatorLibrary
                 case 0xFE: cycles = cp_s(RegisterExtN.N); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0x{0:x2} @ 0x{1:x4}\r\n", m_instructionRegister, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0x{0:x2} @ 0x{1:x4}", m_instructionRegister, m_programCounter.Register - 1));
             }
             return cycles;
         }
@@ -203,6 +369,7 @@ namespace ZXEmulatorLibrary
         {
             uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesDD[opcode]);
             m_programCounter.Register++;
             switch (opcode)
             {
@@ -211,7 +378,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IXd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xDD 0x{0:x2} @ 0x{1:x4}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xDD 0x{0:x2} @ 0x{1:x4}", opcode, m_programCounter.Register));
             }
 
             return cycles;
@@ -221,6 +388,7 @@ namespace ZXEmulatorLibrary
         {
             uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesED[opcode]);
             m_programCounter.Register++;
             switch (opcode)
             {
@@ -242,7 +410,7 @@ namespace ZXEmulatorLibrary
                 case 0x73: cycles = ld__nn__dd(RegisterPairSP.SP); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xED 0x{0:4x} @ 0x{1:6x}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xED 0x{0:4x} @ 0x{1:6x}", opcode, m_programCounter.Register));
             }
             return cycles;
         }
@@ -251,6 +419,7 @@ namespace ZXEmulatorLibrary
         {
             uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesFD[opcode]);
             m_programCounter.Register++;
             switch (opcode)
             {
@@ -262,28 +431,11 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_s(RegisterExtN.IYd); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:4x} @ 0x{1:6x}\r\n", opcode, m_programCounter.Register - 1));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:4x} @ 0x{1:6x}", opcode, m_programCounter.Register));
             }
             return cycles;
         }
 
-        private byte getN()
-        {
-            byte n;
-            n = m_bus.Read(m_programCounter.Register);
-            m_programCounter.Register++;
-            return n;
-        }
-
-        private ushort getNN()
-        {
-            RegisterPair nn = new RegisterPair();
-            nn.Lo = m_bus.Read(m_programCounter.Register);
-            m_programCounter.Register++;
-            nn.Hi = m_bus.Read(m_programCounter.Register);
-            m_programCounter.Register++;
-            return nn.Register;
-        }
 
         private uint nop()
         {
@@ -531,47 +683,7 @@ namespace ZXEmulatorLibrary
             }
             return cycles;
         }
-
-        private byte dec(byte input)
-        {
-            //Condition Bits Affected:
-            //	S is set if result is negative; reset otherwise
-            //	Z is set if result is zero; reset otherwise
-            //	H is set if borrow from bit 4, reset otherwise
-            //	P/V is set if m was 80H before operation; reset otherwise
-            //	N is set
-            //	C is not affected
-            char result = (char)input;
-            result--;
-            if (result < 0)
-            {
-                m_AF.Lo |= (byte)FlagMask.S;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)FlagMask.NS;
-            }
-            if (result == 0)
-            {
-                m_AF.Lo |= (byte)FlagMask.Z;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)FlagMask.NZ;
-            }
-            //TODO: H FLAG
-            if (result == 0x7F)
-            {
-                m_AF.Lo |= (byte)FlagMask.PE;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)FlagMask.PO;
-            }
-            m_AF.Lo |= (byte)FlagMask.N;
-            return (byte)result;
-        }
-
+        
         private uint dec_ss(RegisterPairSP reg)
         {
             //Description: The contents of register pair ss (any of the register pairs BC, DE, HL, or
@@ -769,7 +881,7 @@ namespace ZXEmulatorLibrary
             //	M Cycles	T States	4 MHz E.T.
             //	1			6			1.5
             //Condition Bits Affected: None
-            m_SP = m_HL;
+            m_SP.Register = m_HL.Register;
             return 6;
         }
 
@@ -1100,6 +1212,125 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
+        /// <summary>
+        /// The HALT instruction suspends CPU operation until a subsequent interrupt
+        /// or reset is received. While in the HALT state, the processor executes NOPs
+        /// to maintain memory refresh logic.
+        /// 	M Cycles	T States	4 MHz E.T.
+        /// 	1			4			1.00
+        /// Condition Bits Affected: None
+        /// </summary>
+        /// <returns></returns>
+        private uint halt()
+        {
+            m_halted = true;
+            return 4;
+        }
+
+        /// <summary>
+        /// The enable interrupt instruction sets both interrupt enable flip flops (IFFI
+        /// and IFF2) to a logic 1, allowing recognition of any maskable interrupt. Note
+        /// that during the execution of this instruction and the following instruction,
+        /// maskable interrupts are disabled.
+        /// 	M Cycles	T States	4 MHz E.T.
+        /// 	1			4			1.00
+        /// Condition Bits Affected: None
+        /// </summary>
+        /// <returns></returns>
+        private uint ei()
+        {
+            m_IFF1 = true;
+            m_IFF2 = true;
+            return 4;
+        }
+
+        /// <summary>
+        /// Each 2-byte value in register pairs BC, DE, and HL is exchanged with the 2-
+        /// byte value in BC', DE', and HL', respectively.
+        ///     M Cycles    T States    4 MHz E.T.
+        ///     1           4           1.00
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <returns></returns>
+        private uint exx()
+        {
+            ushort temp;
+
+            temp = m_BC.Register;
+            m_BC.Register = m__BC.Register;
+            m__BC.Register = temp;
+
+            temp = m_DE.Register;
+            m_DE.Register = m__DE.Register;
+            m__DE.Register = temp;
+
+            temp = m_HL.Register;
+            m_HL.Register = m__HL.Register;
+            m__HL.Register = temp;
+
+            return 4;
+        }
+
+
+        private byte getN()
+        {
+            byte n;
+            n = m_bus.Read(m_programCounter.Register);
+            m_programCounter.Register++;
+            return n;
+        }
+
+        private ushort getNN()
+        {
+            RegisterPair nn = new RegisterPair();
+            nn.Lo = m_bus.Read(m_programCounter.Register);
+            m_programCounter.Register++;
+            nn.Hi = m_bus.Read(m_programCounter.Register);
+            m_programCounter.Register++;
+            return nn.Register;
+        }
+
+        private byte dec(byte input)
+        {
+            //Condition Bits Affected:
+            //	S is set if result is negative; reset otherwise
+            //	Z is set if result is zero; reset otherwise
+            //	H is set if borrow from bit 4, reset otherwise
+            //	P/V is set if m was 80H before operation; reset otherwise
+            //	N is set
+            //	C is not affected
+            char result = (char)input;
+            result--;
+            if (result < 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NS;
+            }
+            if (result == 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            //TODO: H FLAG
+            if (result == 0x7F)
+            {
+                m_AF.Lo |= (byte)FlagMask.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.PO;
+            }
+            m_AF.Lo |= (byte)FlagMask.N;
+            return (byte)result;
+        }
+
         private bool check_condition(Condition flg)
         {
             bool ret = false;
@@ -1115,32 +1346,6 @@ namespace ZXEmulatorLibrary
                 case Condition.NS: ret = (m_AF.Lo | (byte)Condition.NS) == (byte)Condition.NS; break;
             }
             return ret;
-        }
-
-        private uint halt()
-        {
-            //Description: The HALT instruction suspends CPU operation until a subsequent interrupt
-            //or reset is received. While in the HALT state, the processor executes NOPs
-            //to maintain memory refresh logic.
-            //	M Cycles	T States	4 MHz E.T.
-            //	1			4			1.00
-            //Condition Bits Affected: None
-            m_halted = true;
-            return 4;
-        }
-
-        private uint ei()
-        {
-            //Description: The enable interrupt instruction sets both interrupt enable flip flops (IFFI
-            //and IFF2) to a logic 1, allowing recognition of any maskable interrupt. Note
-            //that during the execution of this instruction and the following instruction,
-            //maskable interrupts are disabled.
-            //	M Cycles	T States	4 MHz E.T.
-            //	1			4			1.00
-            //Condition Bits Affected: None
-            m_IFF1 = true;
-            m_IFF2 = true;
-            return 4;
         }
     }
 }
