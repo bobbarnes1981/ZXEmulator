@@ -44,6 +44,18 @@ top video scan line:
 	 wrapped around to 0000 (the ROM), and normal program execution
 	 resumed again.
 
+http://problemkaputt.de/zxdocs.htm
+
+Display procedure Tech Details
+The display data is more or less 'executed' by the CPU. When displaying a line, the BIOS takes the address of the first character, eg. 4123h, sets Bit 15, ie. C123h, and then jumps to that address.
+
+The hardware now senses A15=HIGH and /M1=LOW (signalizing opcode read), upon this condition memory is mirrored from C000-FFFF to 4000-7FFF. The 'opcode' is presented to the databus as usually, the display circuit interpretes it as character data, and (if Bit 6 is zero) forces the databus to zero before the CPU realizes what is going on, causing a NOP opcode (00h) to be executed. Bit 7 of the stolen opcode is used as invert attribute, Bit 0-5 address one of the 64 characters in ROM at (I*100h+char*8+linecntr), the byte at that address is loaded into a shift register, and bits are shifted to the display at a rate of 6.5MHz (ie. 8 pixels within 4 CPU cycles).
+
+However, when encountering an opcode with Bit 6 set, then the video circuit rejects the opcode (displays white, regardless of Bit 7 and 0-5), and the CPU executes the opcode as normal. Usually this would be the HALT opcode - before displaying a line, BIOS enables INTs and initializes the R register, which will produce an interrupt when Bit 6 of R becomes zero.
+In this special case R is incremented at a fixed rate of 4 CPU cycles (video data executed as NOPs, followed by repeated HALT), so that line display is suspended at a fixed time, regardless of the collapsed or expanded length of the line.
+
+As mentioned above, an additional register called linecntr is used to address the vertical position (0..7) whithin a character line. This register is reset during vertical retrace, and then incremented once per scanline. The BIOS thus needs to 'execute' each character line eight times, before starting to 'execute' the next character line.
+
 ---
 
 http://z80-heaven.wikidot.com/opcode-reference-chart
