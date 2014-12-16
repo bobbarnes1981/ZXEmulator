@@ -61,6 +61,8 @@ namespace ZXEmulatorLibrary
             {0x35, "dec_m HL"},
             {0x36, "ld__hl__n"},
 
+            {0x38, "jr_c_e"},
+
             {0x3B, "dec_ss SP"},
 
             {0x3D, "dec_m A"},
@@ -203,8 +205,10 @@ namespace ZXEmulatorLibrary
         }
 
 
-        public uint Step(bool interrupt)
+        public uint Step()
         {
+            bool interrupt = (m_R & 0x20) == 0x20;
+
             if (interrupt)
             {
                 switch (m_interruptMode)
@@ -214,8 +218,6 @@ namespace ZXEmulatorLibrary
                     case InterruptMode.Mode_2: throw new NotImplementedException("Interrupt Mode 2 not implemented"); break;
                 }
             }
-
-            m_R = (byte)((m_R + 1) & 0x7F);
 
             if (m_halted)
             {
@@ -237,6 +239,7 @@ namespace ZXEmulatorLibrary
 
         private uint executeOpcode()
         {
+            incrementR();
             uint cycles = 0;
             switch(m_instructionRegister)
             {
@@ -290,6 +293,8 @@ namespace ZXEmulatorLibrary
 
                 case 0x35: cycles = dec_m(RegisterExt.HL); break;
                 case 0x36: cycles = ld__hl__n(); break;
+
+                case 0x38: cycles = jr_c_e(); break;
 
                 case 0x3B: cycles = dec_ss(RegisterPairSP.SP); break;
 
@@ -373,6 +378,7 @@ namespace ZXEmulatorLibrary
 
         private uint executeOpcodeDD()
         {
+            incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
             Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesDD[opcode]);
@@ -392,6 +398,7 @@ namespace ZXEmulatorLibrary
 
         private uint executeOpcodeED()
         {
+            incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
             Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesED[opcode]);
@@ -423,6 +430,7 @@ namespace ZXEmulatorLibrary
 
         private uint executeOpcodeFD()
         {
+            incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_programCounter.Register);
             Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_programCounter.Register, opcode, m_opCodesFD[opcode]);
@@ -590,23 +598,56 @@ namespace ZXEmulatorLibrary
             return cycles;
         }
 
+        /// <summary>
+        /// This instruction provides for conditional branching to other segments of a
+        /// program depending on the results of a test on the Zero Flag. If the flag is
+        /// equal to a 1, the value of the displacement e is added to the Program
+        /// Counter (PC) and the next instruction is fetched from the location
+        /// designated by the new contents of the PC. The jump is measured from the
+        /// address of the instruction Op Code and has a range of -126 to +129 bytes.
+        /// The assembler automatically adjusts for the twice incremented PC.
+        /// If the Zero Flag is equal to a 0, the next instruction executed is taken from
+        /// the location following this instruction. If the condition is met:
+        /// M Cycles    T States        4 MHz E.T.
+        /// 3           12 (4, 3, 5)    3.00
+        /// If the condition is not met;
+        /// M Cycles    T States        4 MHz E.T.
+        /// 2           7 (4, 3)        1.75
+        /// Condition Bits Affected: None
+        /// </summary>
+        /// <returns></returns>
         private uint jr_z_e()
         {
-            //Description: This instruction provides for conditional branching to other segments of a
-            //program depending on the results of a test on the Zero Flag. If the flag is
-            //equal to a 1, the value of the displacement e is added to the Program
-            //Counter (PC) and the next instruction is fetched from the location
-            //designated by the new contents of the PC. The jump is measured from the
-            //address of the instruction Op Code and has a range of -126 to +129 bytes.
-            //The assembler automatically adjusts for the twice incremented PC.
-            //If the Zero Flag is equal to a 0, the next instruction executed is taken from
-            //the location following this instruction. If the condition is met:
-            //	M Cycles	T States		4 MHz E.T.
-            //	3			12 (4, 3, 5)	3.00
-            //If the condition is not met;
-            //	M Cycles	T States		4 MHz E.T.
-            //	2			7 (4, 3)		1.75
-            //Condition Bits Affected: None
+            uint cycles = 7;
+            sbyte e = (sbyte)getN();
+            if (check_condition(Condition.C))
+            {
+                m_programCounter.Register = (ushort)(m_programCounter.Register + e);
+                cycles = 12;
+            }
+            return cycles;
+        }
+
+        /// <summary>
+        /// This instruction provides for conditional branching to other segments of a program
+        /// depending on the results of a test on the Carry Flag. If the flag = 1, the value of displacement
+        /// e is added to the Program Counter (PC) and the next instruction is fetched from the
+        /// location designated by the new contents of the PC. The jump is measured from the address
+        /// of the instruction op code and contains a range of –126 to +129 bytes. The assembler automatically
+        /// adjusts for the twice incremented PC.
+        /// If the flag = 0, the next instruction executed is taken from the location following this
+        /// instruction. If condition is met
+        /// M Cycles    T States        4 MHz E.T.
+        /// 3           12 (4, 3, 5)    3.00
+        /// If condition is not met:
+        /// M Cycles    T States    4 MHz E.T.
+        /// 2           7 (4, 3)    1.75
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <returns></returns>
+        private uint jr_c_e()
+        {
             uint cycles = 7;
             sbyte e = (sbyte)getN();
             if (check_condition(Condition.Z))
@@ -1332,6 +1373,11 @@ namespace ZXEmulatorLibrary
             return 4;
         }
 
+
+        private void incrementR()
+        {
+            m_R = (byte)((m_R + 1) & 0x7F);
+        }
 
         private byte getN()
         {

@@ -9,7 +9,8 @@ namespace ZXEmulatorLibrary.ZX80
 {
     public class Hardware : IHardware
     {
-        private int m_interruptPeriod = 28;
+        private uint m_videoShiftPeriod = 4;
+        private uint m_videoShiftCounter;
 
         private bool m_running = true;
 
@@ -47,16 +48,19 @@ namespace ZXEmulatorLibrary.ZX80
         public void Run()
         {
             uint cycles = 0;
-            bool interrupt = false;
+            m_videoShiftCounter = 0;
+
             do
             {
-                // TODO:  calculate elapsed time in milliseconds
-                cycles += m_cpu.Step(interrupt);
-                interrupt = cycles%m_interruptPeriod == 0;
-                if (cycles%4 == 0)
+                m_videoShiftCounter += cycles;
+                if (m_videoShiftCounter > m_videoShiftPeriod)
                 {
+                    m_videoShiftCounter -= m_videoShiftPeriod;
                     m_video.Shift();
                 }
+
+                // TODO:  calculate elapsed time in milliseconds
+                cycles = m_cpu.Step();
             } while (m_running);
         }
     }
