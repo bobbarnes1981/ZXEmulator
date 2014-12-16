@@ -207,7 +207,7 @@ namespace ZXEmulatorLibrary
 
         public uint Step()
         {
-            bool interrupt = (m_R & 0x20) == 0x20;
+            bool interrupt = (m_R & 0x20) == 0x20; //this is probably wrong
 
             if (interrupt)
             {

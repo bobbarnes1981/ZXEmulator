@@ -53,7 +53,7 @@ namespace ZXEmulatorLibrary.ZX80
             do
             {
                 m_videoShiftCounter += cycles;
-                if (m_videoShiftCounter > m_videoShiftPeriod)
+                while (m_videoShiftCounter > m_videoShiftPeriod)
                 {
                     m_videoShiftCounter -= m_videoShiftPeriod;
                     m_video.Shift();
