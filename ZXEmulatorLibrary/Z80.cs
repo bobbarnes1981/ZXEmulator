@@ -8,6 +8,8 @@ namespace ZXEmulatorLibrary
 {
     public class Z80
     {
+        private const string UNKNOWN_OPCODE = "Unknown Opcode";
+
         private Dictionary<byte, string> m_opCodes = new Dictionary<byte, string>
         {
             {0x00, "nop"},
@@ -161,9 +163,12 @@ namespace ZXEmulatorLibrary
 
             {0x4F, "ld_r_a"},
 
+            {0x52, "sbc_hl_ss DE"},
             {0x53, "ld__nn__dd DE"},
 
             {0x56, "im_1"},
+
+            {0x5B, "ld_dd__nn__ DE"},
 
             {0x5E, "im_2"},
 
@@ -203,8 +208,8 @@ namespace ZXEmulatorLibrary
         private short m_IX;
         private short m_IY;
 
-        private byte m_I = 0x00; // TODO: make external accessible for use during interrupt for addressing
-        private byte m_R = 0x00;
+        private byte m_I; // TODO: make external accessible for use during interrupt for addressing
+        private byte m_R;
 
         private IBus m_bus;
 
@@ -258,7 +263,7 @@ namespace ZXEmulatorLibrary
         private uint executeNextOpcode()
         {
             m_instructionRegister = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, m_instructionRegister, m_opCodes[m_instructionRegister]);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, m_instructionRegister, m_opCodes.ContainsKey(m_instructionRegister) ? m_opCodes[m_instructionRegister] : UNKNOWN_OPCODE);
             m_PC.Register++;
             return executeOpcode();
         }
@@ -413,7 +418,7 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesCB[opcode]);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesCB.ContainsKey(opcode) ? m_opCodesCB[opcode] : UNKNOWN_OPCODE);
             m_PC.Register++;
             switch (opcode)
             {
@@ -429,7 +434,7 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesDD[opcode]);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesDD.ContainsKey(opcode) ? m_opCodesDD[opcode] : UNKNOWN_OPCODE);
             m_PC.Register++;
             switch (opcode)
             {
@@ -449,7 +454,7 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesED[opcode]);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesED.ContainsKey(opcode) ? m_opCodesED[opcode] : UNKNOWN_OPCODE);
             m_PC.Register++;
             switch (opcode)
             {
@@ -460,9 +465,12 @@ namespace ZXEmulatorLibrary
 
                 case 0x4F: cycles = ld_r_a(); break;
 
+                case 0x52: cycles = sbc_hl_ss(RegisterPairSP.DE); break;
                 case 0x53: cycles = ld__nn__dd(RegisterPairSP.DE); break;
 
                 case 0x56: cycles = im_1(); break;
+
+                case 0x5B: cycles = ld_dd__nn__(RegisterPairSP.DE); break;
 
                 case 0x5E: cycles = im_2(); break;
 
@@ -481,7 +489,7 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesFD[opcode]);
+            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesFD.ContainsKey(opcode) ? m_opCodesFD[opcode] : UNKNOWN_OPCODE);
             m_PC.Register++;
             switch (opcode)
             {
@@ -1261,21 +1269,59 @@ namespace ZXEmulatorLibrary
             return 17;
         }
 
+        /// <summary>
+        /// The contents of address (nn) are loaded to the low-order portion of register pair dd, and the
+        /// contents of the next highest memory address (nn + 1) are loaded to the high-order portion
+        /// of dd. Register pair dd defines BC, DE, HL, or SP register pairs, assembled as follows in
+        /// the object code:
+        /// Pair dd
+        /// BC
+        /// DE 01
+        /// HL 10
+        /// SP 11
+        /// The first n operand after the op code is the low-order byte of (nn).
+        /// M Cycles    T States                4 MHz E.T.
+        /// 6           20 (4, 4, 3, 3, 3, 3)   5.00
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
+        private uint ld_dd__nn__(RegisterPairSP reg)
+        {
+            ushort nn = getNN();
+            RegisterPair data = new RegisterPair();
+            switch (reg)
+            {
+                case RegisterPairSP.BC: data.Register = m_BC.Register; break;
+                case RegisterPairSP.DE: data.Register = m_DE.Register; break;
+                case RegisterPairSP.HL: data.Register = m_HL.Register; break;
+                case RegisterPairSP.SP: data.Register = m_SP.Register; break;
+            }
+            data.Lo = m_bus.Read(nn);
+            data.Hi = m_bus.Read((ushort)(nn + 1));
+            return 20;
+        }
+
+        /// <summary>
+        /// The low order byte of register pair dd is loaded to memory address (nn); the
+        /// upper byte is loaded to memory address (nn+1). Register pair dd defines
+        /// either BC, DE, HL, or SP, assembled as follows in the object code:
+        /// Pair dd
+        /// BC 00
+        /// DE 01
+        /// HL 10
+        /// SP 11
+        /// The first n operand after the Op Code is the low order byte of a two byte
+        /// memory address.
+        /// M Cycles    T States                4 MHz E.T.
+        /// 6           20 (4, 4, 3, 3, 3, 3)   5.00
+        /// Condition Bits Affected: None
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
         private uint ld__nn__dd(RegisterPairSP reg)
         {
-            //Description: The low order byte of register pair dd is loaded to memory address (nn); the
-            //upper byte is loaded to memory address (nn+1). Register pair dd defines
-            //either BC, DE, HL, or SP, assembled as follows in the object code:
-            //Pair dd
-            //	BC 00
-            //	DE 01
-            //	HL 10
-            //	SP 11
-            //The first n operand after the Op Code is the low order byte of a two byte
-            //memory address.
-            //	M Cycles	T States				4 MHz E.T.
-            //	6			20 (4, 4, 3, 3, 3, 3)	5.00
-            //Condition Bits Affected: None
             ushort nn = getNN();
             RegisterPair data = new RegisterPair();
             switch (reg)
@@ -1401,6 +1447,42 @@ namespace ZXEmulatorLibrary
                 case RegisterExtN.IYd: m_AF.Hi = sub(m_AF.Hi, m_bus.Read((ushort)(m_IY + (sbyte)getN()))); cycles = 19; break;
             }
             return cycles;
+        }
+
+        /// <summary>
+        /// The contents of the register pair ss (any of register pairs BC, DE, HL, or SP) and the Carry
+        /// Flag (C flag in the F Register) are subtracted from the contents of register pair HL, and the
+        /// result is stored in HL. In the assembled object code, operand ss is specified as follows:
+        /// Register
+        /// Pair ss
+        /// BC 00
+        /// DE 01
+        /// HL 10
+        /// SP 11
+        /// M Cycles    T States        4 MHz E.T.
+        /// 4           15 (4, 4, 4, 3) 3.75
+        /// Condition Bits Affected
+        /// S is set if result is negative; otherwise, it is reset.
+        /// Z is set if result is 0; otherwise, it is reset.
+        /// H is set if borrow from bit 12; otherwise, it is reset.
+        /// P/V is set if overflow; otherwise, it is reset.
+        /// N is set.
+        /// C is set if borrow; otherwise, it is reset.
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
+        private uint sbc_hl_ss(RegisterPairSP reg)
+        {
+            ushort val = (ushort)(m_AF.Lo & (byte)Condition.C);
+            switch (reg)
+            {
+                case RegisterPairSP.BC: val |= m_BC.Register; break;
+                case RegisterPairSP.DE: val |= m_DE.Register; break;
+                case RegisterPairSP.HL: val |= m_HL.Register; break;
+                case RegisterPairSP.SP: val |= m_SP.Register; break;
+            }
+            m_HL.Register = sbc(m_HL.Register, val);
+            return 15;
         }
 
         /// <summary>
@@ -1668,6 +1750,53 @@ namespace ZXEmulatorLibrary
             }
             m_AF.Lo |= (byte)FlagMask.N;
             return (byte)result;
+        }
+
+        private ushort sbc(ushort inputA, ushort inputB)
+        {
+            // Condition Bits Affected
+            // S is set if result is negative; otherwise, it is reset.
+            // Z is set if result is 0; otherwise, it is reset.
+            // H is set if borrow from bit 12; otherwise, it is reset.
+            // P/V is set if overflow; otherwise, it is reset.
+            // N is set.
+            // C is set if borrow; otherwise, it is reset.
+            short result = (short)((short)inputA - (short)inputB);
+            if (result < 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NS;
+            }
+            if (result == 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            //TODO: H FLAG
+            if (result == 0x7F)
+            {
+                m_AF.Lo |= (byte)FlagMask.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.PO;
+            }
+            m_AF.Lo |= (byte)FlagMask.N;
+            if ((short)inputA < (short)inputB)
+            {
+                m_AF.Lo |= (byte) FlagMask.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NC;
+            }
+            return (ushort)result;
         }
 
         private bool check_condition(Condition flg)
