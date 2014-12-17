@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ZXEmulatorLibrary
 {
@@ -56,6 +53,7 @@ namespace ZXEmulatorLibrary
             {0x2D, "dec_m L"},
             {0x2E, "ld_r_n L"},
 
+            {0x30, "jr_nc_e"},
             {0x31, "ld_dd_nn SP"},
 
             {0x33, "inc_ss SP"},
@@ -73,6 +71,10 @@ namespace ZXEmulatorLibrary
 
             {0x47, "ld_r_r B A"},
 
+            {0x54, "ld_r_r D H"},
+
+            {0x5D, "ld_r_r E L"},
+
             {0x60, "ld_r_r H B"},
 
             {0x69, "ld_r_r L C"},
@@ -80,6 +82,10 @@ namespace ZXEmulatorLibrary
             {0x76, "halt"},
 
             {0x78, "ld_r_r A B"},
+
+            {0x7E, "ld_r_hl A"},
+
+            {0x87, "add_a_r A"},
 
             {0xB8, "cp_s B"},
             {0xB9, "cp_s C"},
@@ -175,6 +181,8 @@ namespace ZXEmulatorLibrary
             {0x63, "ld__nn__dd HL"},
 
             {0x73, "ld__nn__dd SP"},
+
+            {0xB1, "cpir"},
         };
 
         private Dictionary<byte, string> m_opCodesFD = new Dictionary<byte, string>
@@ -319,6 +327,7 @@ namespace ZXEmulatorLibrary
                 case 0x2D: cycles = dec_m(RegisterExt.L); break;
                 case 0x2E: cycles = ld_r_n(Register.L); break;
 
+                case 0x30: cycles = jr_nc_e(); break;
                 case 0x31: cycles = ld_dd_nn(RegisterPairSP.SP); break;
 
                 case 0x33: cycles = inc_ss(RegisterPairSP.SP); break;
@@ -336,6 +345,10 @@ namespace ZXEmulatorLibrary
 
                 case 0x47: cycles = ld_r_r(Register.B, Register.A); break;
 
+                case 0x54: cycles = ld_r_r(Register.D, Register.H); break;
+
+                case 0x5D: cycles = ld_r_r(Register.E, Register.L); break;
+
                 case 0x60: cycles = ld_r_r(Register.H, Register.B); break;
 
                 case 0x69: cycles = ld_r_r(Register.L, Register.C); break;
@@ -343,6 +356,10 @@ namespace ZXEmulatorLibrary
                 case 0x76: cycles = halt(); break;
 
                 case 0x78: cycles = ld_r_r(Register.A, Register.B); break;
+
+                case 0x7E: cycles = ld_r_hl(Register.A); break;
+
+                case 0x87: cycles = add_a_r(Register.A); break;
 
                 case 0xB8: cycles = cp_s(RegisterExtN.B); break;
                 case 0xB9: cycles = cp_s(RegisterExtN.C); break;
@@ -478,6 +495,8 @@ namespace ZXEmulatorLibrary
 
                 case 0x73: cycles = ld__nn__dd(RegisterPairSP.SP); break;
 
+                case 0xB1: cycles = cpir(); break;
+
                 default:
                     throw new Exception(string.Format("Unhandled Opcode: 0xED 0x{0:4x} @ 0x{1:6x}", opcode, m_PC.Register));
             }
@@ -610,6 +629,40 @@ namespace ZXEmulatorLibrary
             return 9;
         }
 
+        /// <summary>
+        /// The 8-bit contents of memory location (HL) are loaded to register r, in which r identifies
+        /// registers A, B, C, D, E, H, or L, assembled as follows in the object code:
+        /// Register r
+        /// A 111
+        /// B 000
+        /// C 001
+        /// D 010
+        /// E 011
+        /// H 100
+        /// L 101
+        /// M Cycles    T States    4 MHz E.T.
+        /// 2           7 (4, 3)    1.75
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
+        private uint ld_r_hl(Register reg)
+        {
+            byte data = m_bus.Read(m_HL.Register);
+            switch (reg)
+            {
+                case Register.A: m_AF.Hi = data; break;
+                case Register.B: m_BC.Hi = data; break;
+                case Register.C: m_BC.Lo = data; break;
+                case Register.D: m_DE.Hi = data; break;
+                case Register.E: m_DE.Lo = data; break;
+                case Register.H: m_HL.Hi = data; break;
+                case Register.L: m_HL.Lo = data; break;
+            }
+            return 2;
+        }
+
         private uint jr_e()
         {
             //Description: This instruction provides for unconditional branching to other segments of
@@ -677,6 +730,37 @@ namespace ZXEmulatorLibrary
             uint cycles = 7;
             sbyte e = (sbyte)getN();
             if (check_condition(Condition.Z))
+            {
+                m_PC.Register = (ushort)(m_PC.Register + e);
+                cycles = 12;
+            }
+            return cycles;
+        }
+
+        /// <summary>
+        /// This instruction provides for conditional branching to other segments of a program
+        /// depending on the results of a test on the Carry Flag. If the flag is equal to 0, the value of
+        /// displacement e is added to the Program Counter (PC) and the next instruction is fetched
+        /// from the location designated by the new contents of the PC. The jump is measured from
+        /// the address of the instruction op code and contains a range of –126 to +129 bytes. The
+        /// assembler automatically adjusts for the twice incremented PC.
+        /// If the flag = 1, the next instruction executed is taken from the location following this
+        /// instruction.
+        /// If the condition is met:
+        /// M Cycles    T States        4 MHz E.T.
+        /// 3           12 (4, 3, 5)    3.00
+        /// If the condition is not met:
+        /// M Cycles    T States        4 MHz E.T.
+        /// 7           7 (4, 3)        1.75
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <returns></returns>
+        private uint jr_nc_e()
+        {
+            uint cycles = 7;
+            sbyte e = (sbyte)getN();
+            if (check_condition(Condition.NC))
             {
                 m_PC.Register = (ushort)(m_PC.Register + e);
                 cycles = 12;
@@ -953,37 +1037,7 @@ namespace ZXEmulatorLibrary
             }
             return cycles;
         }
-
-        private void cp(byte x, byte y)
-        {
-            if (x > y)
-            {
-                m_AF.Lo |= (byte)Condition.S;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)Condition.NS;
-            }
-            if (x == y)
-            {
-                m_AF.Lo |= (byte)Condition.Z;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)Condition.NZ;
-            }
-            // TODO: H FLAG
-            // TODO: PV FLAG
-            if (x < y)
-            {
-                m_AF.Lo |= (byte)Condition.C;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)Condition.NC;
-            }
-        }
-
+        
         private uint jp__hl__()
         {
             //Description: The Program Counter (register pair PC) is loaded with the contents of the
@@ -1401,6 +1455,45 @@ namespace ZXEmulatorLibrary
         }
 
         /// <summary>
+        /// The contents of register r are added to the contents of the Accumulator, and the result is
+        /// stored in the Accumulator. The r symbol identifies the registers A, B, C, D, E, H, or L,
+        /// assembled as follows in the object code:
+        /// Register r
+        /// A 111
+        /// B 000
+        /// C 001
+        /// D 010
+        /// E 011
+        /// H 100
+        /// L 101
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
+        /// Condition Bits Affected
+        /// S is set if result is negative; otherwise, it is reset.
+        /// Z is set if result is 0; otherwise, it is reset.
+        /// H is set if carry from bit 3; otherwise, it is reset.
+        /// P/V is set if overflow; otherwise, it is reset.
+        /// N is reset.
+        /// C is set if carry from bit 7; otherwise, it is reset.
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
+        private uint add_a_r(Register reg)
+        {
+            switch (reg)
+            {
+                case Register.A: m_AF.Hi = add(m_AF.Hi, m_AF.Hi); break;
+                case Register.B: m_AF.Hi = add(m_AF.Hi, m_BC.Hi); break;
+                case Register.C: m_AF.Hi = add(m_AF.Hi, m_BC.Lo); break;
+                case Register.D: m_AF.Hi = add(m_AF.Hi, m_DE.Hi); break;
+                case Register.E: m_AF.Hi = add(m_AF.Hi, m_DE.Lo); break;
+                case Register.H: m_AF.Hi = add(m_AF.Hi, m_HL.Hi); break;
+                case Register.L: m_AF.Hi = add(m_AF.Hi, m_HL.Lo); break;
+            }
+            return 4;
+        }
+
+        /// <summary>
         /// Register r
         /// B 000
         /// C 001
@@ -1476,10 +1569,10 @@ namespace ZXEmulatorLibrary
             ushort val = (ushort)(m_AF.Lo & (byte)Condition.C);
             switch (reg)
             {
-                case RegisterPairSP.BC: val |= m_BC.Register; break;
-                case RegisterPairSP.DE: val |= m_DE.Register; break;
-                case RegisterPairSP.HL: val |= m_HL.Register; break;
-                case RegisterPairSP.SP: val |= m_SP.Register; break;
+                case RegisterPairSP.BC: val += m_BC.Register; break;
+                case RegisterPairSP.DE: val += m_DE.Register; break;
+                case RegisterPairSP.HL: val += m_HL.Register; break;
+                case RegisterPairSP.SP: val += m_SP.Register; break;
             }
             m_HL.Register = sbc(m_HL.Register, val);
             return 15;
@@ -1610,6 +1703,54 @@ namespace ZXEmulatorLibrary
             return 3;
         }
 
+        /// <summary>
+        /// The contents of the memory location addressed by the HL register pair is compared with
+        /// the contents of the Accumulator. During a compare operation, a condition bit is set. HL is
+        /// incremented and the Byte Counter (register pair BC) is decremented. If decrementing
+        /// causes BC to go to 0 or if A = (HL), the instruction is terminated. If BC is not 0 and A ≠
+        /// (HL), the program counter is decremented by two and the instruction is repeated. Interrupts
+        /// are recognized and two refresh cycles are executed after each data transfer.
+        /// If BC is set to 0 before instruction execution, the instruction loops through 64 KB if no
+        /// match is found.
+        /// For BC ≠ 0 and A ≠ (HL):
+        /// M Cycles    T States            4 MHz E.T.
+        /// 5           21 (4, 4, 3, 5, 5)  5.25
+        /// For BC = 0 and A = (HL):
+        /// M Cycles    T States            4 MHz E.T.
+        /// 4           16 (4, 4, 3, 5)     4.00
+        /// Condition Bits Affected
+        /// S is set if result is negative; otherwise, it is reset.
+        /// Z is set if A equals (HL); otherwise, it is reset.
+        /// H is set if borrow from bit 4; otherwise, it is reset.
+        /// P/V is set if BC – 1 does not equal 0; otherwise, it is reset.
+        /// N is set.
+        /// C is not affected.
+        /// </summary>
+        /// <returns></returns>
+        private uint cpir()
+        {
+            uint cycles = 16;
+            byte data = m_bus.Read(m_HL.Register);
+            cpn(m_AF.Hi, data);
+            m_HL.Register++;
+            m_BC.Register--;
+            if (m_BC.Register != 0x0000)
+            {
+                m_AF.Lo |= (byte)Condition.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)Condition.PO;
+            }
+            if (m_BC.Register != 0x0000 && m_AF.Hi != data)
+            {
+                m_PC.Register -= 2;
+                cycles = 21;
+            }
+            return cycles;
+        }
+
+
         private void incrementR()
         {
             m_R = (byte)((m_R + 1) & 0x7F);
@@ -1713,6 +1854,45 @@ namespace ZXEmulatorLibrary
             return (byte)result;
         }
 
+        private byte add(byte inputA, byte inputB)
+        {
+            // Condition Bits Affected
+            // S is set if result is negative; otherwise, it is reset.
+            // Z is set if result is 0; otherwise, it is reset.
+            // H is set if carry from bit 3; otherwise, it is reset.
+            // P/V is set if overflow; otherwise, it is reset.
+            // N is reset.
+            // C is set if carry from bit 7; otherwise, it is reset.
+            sbyte result = (sbyte)((sbyte)inputA + (sbyte)inputB);
+            if (result < 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NS;
+            }
+            if (result == 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            //TODO: H FLAG
+            if (((sbyte)inputA + (sbyte)inputB) > byte.MaxValue)
+            {
+                m_AF.Lo |= (byte)FlagMask.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.PO;
+            }
+            m_AF.Lo |= (byte)FlagMask.N;
+            return (byte)result;
+        }
+
         private byte sub(byte inputA, byte inputB)
         {
             // Condition Bits Affected
@@ -1740,7 +1920,7 @@ namespace ZXEmulatorLibrary
                 m_AF.Lo &= (byte)FlagMask.NZ;
             }
             //TODO: H FLAG
-            if (result == 0x7F)
+            if (((sbyte)inputA - (sbyte)inputB) > byte.MaxValue)
             {
                 m_AF.Lo |= (byte)FlagMask.PE;
             }
@@ -1799,6 +1979,66 @@ namespace ZXEmulatorLibrary
             return (ushort)result;
         }
 
+        private void cp(byte x, byte y)
+        {
+            if (x > y)
+            {
+                m_AF.Lo |= (byte)Condition.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)Condition.NS;
+            }
+            if (x == y)
+            {
+                m_AF.Lo |= (byte)Condition.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)Condition.NZ;
+            }
+            // TODO: H FLAG
+            // TODO: PV FLAG
+            if (x < y)
+            {
+                m_AF.Lo |= (byte)Condition.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)Condition.NC;
+            }
+        }
+
+        private void cpn(byte x, byte y)
+        {
+            // Condition Bits Affected
+            // S is set if result is negative; otherwise, it is reset.
+            // Z is set if A equals (HL); otherwise, it is reset.
+            // H is set if borrow from bit 4; otherwise, it is reset.
+            // P/V is set if BC – 1 does not equal 0; otherwise, it is reset.
+            // N is set.
+            // C is not affected.
+            if (x > y)
+            {
+                m_AF.Lo |= (byte)Condition.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)Condition.NS;
+            }
+            if (x == y)
+            {
+                m_AF.Lo |= (byte)Condition.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)Condition.NZ;
+            }
+            // TODO: H FLAG
+            // TODO: PV FLAG
+            m_AF.Lo |= (byte)FlagMask.N;
+        }
+
         private bool check_condition(Condition flg)
         {
             bool ret = false;
@@ -1812,6 +2052,7 @@ namespace ZXEmulatorLibrary
                 case Condition.PO: ret = (m_AF.Lo | (byte)Condition.PO) == (byte)Condition.PO; break;
                 case Condition.S: ret = (m_AF.Lo & (byte)Condition.S) == (byte)Condition.S; break;
                 case Condition.NS: ret = (m_AF.Lo | (byte)Condition.NS) == (byte)Condition.NS; break;
+                default: throw new NotImplementedException();
             }
             return ret;
         }
