@@ -211,16 +211,21 @@ namespace ZXEmulatorLibrary
         }
 
 
-        public uint Step(bool interrupt)
+        public uint Step(bool interrupt, bool nmi)
         {
-            // TODO: INTACK cycle (whatever that is) must disable interrupts (IFF1 & IFF2?)
-
-            if (interrupt)
+            // when is IFF2 reset?
+            if (nmi)
+            {
+                m_IFF1 = false;
+                // jump to 0x0066
+                throw new NotImplementedException();
+            }
+            else if(interrupt && m_IFF1)
             {
                 switch (m_interruptMode)
                 {
                     case InterruptMode.Mode_0: throw new NotImplementedException("Interrupt mode 0 not implemented"); break;
-                    case InterruptMode.Mode_1: rst_p(ResetLocation.Addr38h); m_halted = false; break;
+                    case InterruptMode.Mode_1: m_IFF1 = false; rst_p(ResetLocation.Addr38h); m_halted = false; break;
                     case InterruptMode.Mode_2: throw new NotImplementedException("Interrupt Mode 2 not implemented"); break;
                 }
             }
@@ -233,6 +238,18 @@ namespace ZXEmulatorLibrary
             return executeNextOpcode();
         }
 
+        public uint Reset()
+        {
+            m_IFF1 = false;
+            m_IFF2 = false;
+            m_interruptMode = InterruptMode.Mode_0;
+            m_PC.Register = 0x0000;
+            m_I = 0x00;
+            m_R = 0x00;
+            m_SP.Register = 0xFFFF;
+            m_AF.Register = 0xFFFF;
+            return 3;
+        }
 
         private uint executeNextOpcode()
         {
@@ -303,6 +320,7 @@ namespace ZXEmulatorLibrary
                 case 0x38: cycles = jr_c_e(); break;
 
                 case 0x3B: cycles = dec_ss(RegisterPairSP.SP); break;
+                case 0x3C: cycles = inc_r(Register.A); break;
 
                 case 0x3D: cycles = dec_m(RegisterExt.A); break;
                 case 0x3E: cycles = ld_r_n(Register.A); break;
@@ -834,6 +852,34 @@ namespace ZXEmulatorLibrary
                 case RegisterPairSP.SP: m_SP.Register++; break;
             }
             return 6;
+        }
+
+        /// <summary>
+        /// Register r is incremented and register r identifies any of the registers A, B, C, D, E, H, or
+        /// L, assembled as follows in the object code.
+        /// Register r
+        /// A 111
+        /// B 000
+        /// C 001
+        /// D 010
+        /// E 011
+        /// H 100
+        /// L 101
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
+        /// Condition Bits Affected
+        /// S is set if result is negative; otherwise, it is reset.
+        /// Z is set if result is 0; otherwise, it is reset.
+        /// H is set if carry from bit 3; otherwise, it is reset.
+        /// P/V is set if r was 7Fh before operation; otherwise, it is reset.
+        /// N is reset.
+        /// C is not affected.
+        /// </summary>
+        /// <param name="reg"></param>
+        /// <returns></returns>
+        private uint inc_r(Register reg)
+        {
+            throw new NotImplementedException();
         }
 
         private uint cp_s(RegisterExtN reg)

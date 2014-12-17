@@ -73,7 +73,7 @@ namespace ZXEmulatorLibrary.ZX80
                 invertVideo = true;
             }
             // use data as address in rom
-            ushort romAddress = (ushort)((0x68 & data) + 0x0E00); // + line counter
+            ushort romAddress = (ushort)((0x68 & data) + 0x0E00); // 0x0E00 taken from I reg + line counter (address a5-a7 0xF0)
             // send rom data to video output (bit 7 is invert attribute)
             byte videoData = ReadMemory(romAddress);
             // send video data to video hardware

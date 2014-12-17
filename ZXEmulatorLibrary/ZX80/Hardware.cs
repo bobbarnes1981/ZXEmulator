@@ -81,7 +81,7 @@ namespace ZXEmulatorLibrary.ZX80
                 }
 
                 // TODO:  calculate elapsed time in milliseconds
-                cycles = m_cpu.Step(interrupt);
+                cycles = m_cpu.Step(interrupt, false);
             } while (m_running);
         }
     }
