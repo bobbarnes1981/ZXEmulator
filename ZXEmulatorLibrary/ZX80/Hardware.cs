@@ -61,7 +61,9 @@ namespace ZXEmulatorLibrary.ZX80
             uint cycles = 0;
             m_interruptCounter = 0;
             m_videoCounter = 0;
-            
+
+            m_cpu.Reset();
+
             do
             {
                 bool interrupt = false;

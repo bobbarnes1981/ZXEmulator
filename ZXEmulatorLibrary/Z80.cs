@@ -64,9 +64,12 @@ namespace ZXEmulatorLibrary
             {0x38, "jr_c_e"},
 
             {0x3B, "dec_ss SP"},
+            {0x3C, "inc_r A"},
 
             {0x3D, "dec_m A"},
             {0x3E, "ld_r_n A"},
+
+            {0x47, "ld_r_r B A"},
 
             {0x60, "ld_r_r H B"},
 
@@ -107,6 +110,7 @@ namespace ZXEmulatorLibrary
             {0xD5, "push_qq DE"},
 
             {0xD8, "ret_cc C"},
+            {0xD9, "exx"},
 
             {0xDA, "jp_cc_nn C"},
             {0xDD, "DD"},
@@ -119,7 +123,7 @@ namespace ZXEmulatorLibrary
             {0xE8, "ret_cc PE"},
             {0xE9, "jp__hl__"},
             {0xEA, "jp_cc_nn PE"},
-            {0xEB, "exx"},
+            {0xEB, "ex_de_hl"},
 
             {0xED, "ED"},
 
@@ -325,6 +329,8 @@ namespace ZXEmulatorLibrary
                 case 0x3D: cycles = dec_m(RegisterExt.A); break;
                 case 0x3E: cycles = ld_r_n(Register.A); break;
 
+                case 0x47: cycles = ld_r_r(Register.B, Register.A); break;
+
                 case 0x60: cycles = ld_r_r(Register.H, Register.B); break;
 
                 case 0x69: cycles = ld_r_r(Register.L, Register.C); break;
@@ -364,6 +370,7 @@ namespace ZXEmulatorLibrary
                 case 0xD5: cycles = push_qq(RegisterPairAF.DE); break;
 
                 case 0xD8: cycles = ret_cc(Condition.C); break;
+                case 0xD9: cycles = exx(); break;
 
                 case 0xDA: cycles = jp_cc_nn(Condition.C); break;
                 case 0xDD: cycles = executeOpcodeDD(); break;
@@ -377,7 +384,7 @@ namespace ZXEmulatorLibrary
                 case 0xE9: cycles = jp__hl__(); break;
                 case 0xEA: cycles = jp_cc_nn(Condition.PE); break;
 
-                case 0xEB: cycles = exx(); break;
+                case 0xEB: cycles = ex_de_hl(); break;
 
                 case 0xED: cycles = executeOpcodeED(); break;
 
@@ -879,7 +886,17 @@ namespace ZXEmulatorLibrary
         /// <returns></returns>
         private uint inc_r(Register reg)
         {
-            throw new NotImplementedException();
+            switch (reg)
+            {
+                case Register.A: m_AF.Hi = inc(m_AF.Hi); break;
+                case Register.B: m_BC.Hi = inc(m_BC.Hi); break;
+                case Register.C: m_BC.Lo = inc(m_BC.Lo); break;
+                case Register.D: m_DE.Hi = inc(m_DE.Hi); break;
+                case Register.E: m_DE.Lo = inc(m_DE.Lo); break;
+                case Register.H: m_HL.Hi = inc(m_HL.Hi); break;
+                case Register.L: m_HL.Lo = inc(m_HL.Lo); break;
+            }
+            return 4;
         }
 
         private uint cp_s(RegisterExtN reg)
@@ -1022,7 +1039,7 @@ namespace ZXEmulatorLibrary
         /// AF 11
         /// M Cycles	T States		4 MHz E.T.
         /// 3			11 (5, 3, 3)	2.75
-        //Condition Bits Affected: None
+        /// Condition Bits Affected: None
         /// </summary>
         /// <param name="reg"></param>
         /// <returns></returns>
@@ -1419,6 +1436,25 @@ namespace ZXEmulatorLibrary
         }
 
         /// <summary>
+        /// The 2-byte contents of register pairs DE and HL are exchanged.
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <returns></returns>
+        private uint ex_de_hl()
+        {
+            ushort temp;
+
+            temp = m_DE.Register;
+            m_DE.Register = m_HL.Register;
+            m_HL.Register = temp;
+
+            return 4;
+        }
+
+        /// <summary>
         /// Each 2-byte value in register pairs BC, DE, and HL is exchanged with the 2-
         /// byte value in BC', DE', and HL', respectively.
         /// M Cycles    T States    4 MHz E.T.
@@ -1515,6 +1551,46 @@ namespace ZXEmulatorLibrary
             return nn.Register;
         }
 
+        private byte inc(byte input)
+        {
+            // Condition Bits Affected
+            // S is set if result is negative; otherwise, it is reset.
+            // Z is set if result is 0; otherwise, it is reset.
+            // H is set if carry from bit 3; otherwise, it is reset.
+            // P/V is set if r was 7Fh before operation; otherwise, it is reset.
+            // N is reset.
+            // C is not affected.
+            sbyte result = (sbyte)input;
+            result++;
+            if (result < 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NS;
+            }
+            if (result == 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            //TODO: H FLAG
+            if (input == 0x7F)
+            {
+                m_AF.Lo |= (byte)FlagMask.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.PO;
+            }
+            m_AF.Lo |= (byte)FlagMask.N;
+            return (byte)result;
+        }
+
         private byte dec(byte input)
         {
             // Condition Bits Affected:
@@ -1543,7 +1619,7 @@ namespace ZXEmulatorLibrary
                 m_AF.Lo &= (byte)FlagMask.NZ;
             }
             //TODO: H FLAG
-            if (result == 0x7F)
+            if (input == 0x80)
             {
                 m_AF.Lo |= (byte)FlagMask.PE;
             }
