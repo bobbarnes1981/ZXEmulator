@@ -1645,7 +1645,34 @@ namespace ZXEmulatorLibrary
         /// <returns></returns>
         private uint add_hl_ss(RegisterPairSP ss)
         {
-            throw new NotImplementedException();
+            short data = 0x0000;
+            switch(ss)
+            {
+                case RegisterPairSP.BC: data = (short)m_BC.Register; break;
+                case RegisterPairSP.DE: data = (short)m_DE.Register; break;
+                case RegisterPairSP.HL: data = (short)m_HL.Register; break;
+                case RegisterPairSP.SP: data = (short)m_SP.Register; break;
+            }
+            short result = (short)((short)m_HL.Register + data);
+            if ((short)((m_HL.Register & 0x0FFF) ^ (data & 0x0FFF)) > 0x0000) // carry from bit 11, not sure this will work
+            {
+                m_AF.Lo |= (byte)FlagMask.H;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NH;
+            }
+            m_AF.Lo &= (byte)FlagMask.NN;
+            if ((short)(m_HL.Register ^ data) > 0x0000) // carry from bit 15, not sure this will work
+            {
+                m_AF.Lo |= (byte)FlagMask.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NC;
+            }
+            m_HL.Register = (ushort)result;
+            return 11;
         }
 
         /// <summary>
