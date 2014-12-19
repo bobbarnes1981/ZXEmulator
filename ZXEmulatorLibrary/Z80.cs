@@ -119,7 +119,7 @@ namespace ZXEmulatorLibrary
 
             {0xCD, "call_nn"},
 
-            {0xD0, "ret_cc C"},
+            {0xD0, "ret_cc NC"},
             {0xD1, "pop_qq DE"},
             {0xD2, "jp_cc_nn C"},
             {0xD3, "out__n__a"},
@@ -401,7 +401,7 @@ namespace ZXEmulatorLibrary
 
                 case 0xCD: cycles = call_nn(); break;
 
-                case 0xD0: cycles = ret_cc(Condition.C); break;
+                case 0xD0: cycles = ret_cc(Condition.NC); break;
                 case 0xD1: cycles = pop_qq(RegisterPairAF.DE); break;
                 case 0xD2: cycles = jp_cc_nn(Condition.C); break;
                 case 0xD3: cycles = out__n__a();break;
