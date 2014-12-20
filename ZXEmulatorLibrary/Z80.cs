@@ -218,7 +218,9 @@ namespace ZXEmulatorLibrary
             {0x96, "sub_iyd"},
 
             {0xBE, "cp_iyd"},
-        }; 
+        };
+
+        public bool Debug { get; set; }
 
         private bool m_IFF1 = false;
         private bool m_IFF2 = false;
@@ -278,7 +280,7 @@ namespace ZXEmulatorLibrary
                 return nop();
             }
 
-            return executeNextOpcode();
+            return executeOpcode();
         }
 
         public uint Reset()
@@ -294,19 +296,17 @@ namespace ZXEmulatorLibrary
             return 3;
         }
 
-        private uint executeNextOpcode()
-        {
-            m_instructionRegister = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, m_instructionRegister, m_opCodes.ContainsKey(m_instructionRegister) ? m_opCodes[m_instructionRegister] : UNKNOWN_OPCODE);
-            m_PC.Register++;
-            return executeOpcode();
-        }
-
 
         private uint executeOpcode()
         {
             incrementR();
             uint cycles = 0;
+            m_instructionRegister = m_bus.Read(m_PC.Register);
+            if (Debug)
+            {
+                Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, m_instructionRegister, m_opCodes.ContainsKey(m_instructionRegister) ? m_opCodes[m_instructionRegister] : UNKNOWN_OPCODE);
+            }
+            m_PC.Register++;
             switch(m_instructionRegister)
             {
                 case 0x00: cycles = nop(); break;
@@ -483,7 +483,10 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesCB.ContainsKey(opcode) ? m_opCodesCB[opcode] : UNKNOWN_OPCODE);
+            if (Debug)
+            {
+                Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesCB.ContainsKey(opcode) ? m_opCodesCB[opcode] : UNKNOWN_OPCODE);
+            }
             m_PC.Register++;
             switch (opcode)
             {
@@ -501,7 +504,10 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesDD.ContainsKey(opcode) ? m_opCodesDD[opcode] : UNKNOWN_OPCODE);
+            if (Debug)
+            {
+                Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesDD.ContainsKey(opcode) ? m_opCodesDD[opcode] : UNKNOWN_OPCODE);
+            }
             m_PC.Register++;
             switch (opcode)
             {
@@ -521,7 +527,10 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesED.ContainsKey(opcode) ? m_opCodesED[opcode] : UNKNOWN_OPCODE);
+            if (Debug)
+            {
+                Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesED.ContainsKey(opcode) ? m_opCodesED[opcode] : UNKNOWN_OPCODE);
+            }
             m_PC.Register++;
             switch (opcode)
             {
@@ -561,7 +570,10 @@ namespace ZXEmulatorLibrary
             incrementR();
             uint cycles = 0;
             byte opcode = m_bus.Read(m_PC.Register);
-            Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesFD.ContainsKey(opcode) ? m_opCodesFD[opcode] : UNKNOWN_OPCODE);
+            if (Debug)
+            {
+                Console.WriteLine("0x{0:x4} 0x{1:x2} {2}", m_PC.Register, opcode, m_opCodesFD.ContainsKey(opcode) ? m_opCodesFD[opcode] : UNKNOWN_OPCODE);
+            }
             m_PC.Register++;
             switch (opcode)
             {
