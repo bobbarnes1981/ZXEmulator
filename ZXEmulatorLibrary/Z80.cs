@@ -17,11 +17,13 @@ namespace ZXEmulatorLibrary
 
             {0x05, "dec_r B"},
             {0x06, "ld_r_n B"},
+            {0x07, "rlca"},
 
             {0x0B, "dec_ss BC"},
 
             {0x0D, "dec_r C"},
             {0x0E, "ld_r_n C"},
+            {0x0F, "rrca"},
 
             {0x11, "ld_dd_nn DE"},
 
@@ -94,11 +96,15 @@ namespace ZXEmulatorLibrary
 
             {0x78, "ld_r_r A B"},
 
+            {0x7B, "ld_r_r A E"},
+
             {0x7E, "ld_r_hl A"},
 
             {0x87, "add_a_r A"},
 
             {0xA7, "and_r A"},
+
+            {0xAF, "xor_r A"},
 
             {0xB8, "cp_s B"},
             {0xB9, "cp_s C"},
@@ -177,6 +183,7 @@ namespace ZXEmulatorLibrary
 
         private Dictionary<byte, string> m_opCodesED = new Dictionary<byte, string>
         {
+            {0x42, "sbc_hl_ss BC"},
             {0x43, "ld__nn__dd BC"},
 
             {0x46, "im_0"},
@@ -309,11 +316,15 @@ namespace ZXEmulatorLibrary
 
                 case 0x05: cycles = dec_r(Register.B); break;
                 case 0x06: cycles = ld_r_n(Register.B); break;
+                case 0x07: cycles = rlca(); break;
+
+                case 0x09: cycles = add_hl_ss(RegisterPairSP.BC); break;
 
                 case 0x0B: cycles = dec_ss(RegisterPairSP.BC); break;
 
                 case 0x0D: cycles = dec_r(Register.C); break;
                 case 0x0E: cycles = ld_r_n(Register.C); break;
+                case 0x0F: cycles = rrca(); break;
 
                 case 0x11: cycles = ld_dd_nn(RegisterPairSP.DE); break;
 
@@ -386,11 +397,15 @@ namespace ZXEmulatorLibrary
 
                 case 0x78: cycles = ld_r_r(Register.A, Register.B); break;
 
+                case 0x7B: cycles = ld_r_r(Register.A, Register.E); break;
+
                 case 0x7E: cycles = ld_r_hl(Register.A); break;
 
                 case 0x87: cycles = add_a_r(Register.A); break;
-                    
+
                 case 0xA7: cycles = and_r(Register.A); break;
+
+                case 0xAF: cycles = xor_r(Register.A); break;
 
                 case 0xB8: cycles = cp_r(Register.B); break;
                 case 0xB9: cycles = cp_r(Register.C); break;
@@ -510,6 +525,7 @@ namespace ZXEmulatorLibrary
             m_PC.Register++;
             switch (opcode)
             {
+                case 0x42: cycles = sbc_hl_ss(RegisterPairSP.BC); break;
                 case 0x43: cycles = ld__nn__dd(RegisterPairSP.BC); break;
 
                 case 0x46: cycles = im_0(); break;
@@ -559,7 +575,7 @@ namespace ZXEmulatorLibrary
                 case 0xBE: cycles = cp_iyd(); break;
 
                 default:
-                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:4x} @ 0x{1:6x}", opcode, m_PC.Register - 2));
+                    throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:x2} @ 0x{1:x4}", opcode, m_PC.Register - 2));
             }
             return cycles;
         }
@@ -2040,6 +2056,46 @@ namespace ZXEmulatorLibrary
         }
 
         /// <summary>
+        /// The contents of the Accumulator (Register A) are rotated left 1 bit position. The sign bit
+        /// (bit 7) is copied to the Carry flag and also to bit 0. Bit 0 is the least-significant bit.
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
+        /// Condition Bits Affected
+        /// S is not affected.
+        /// Z is not affected.
+        /// H is reset.
+        /// P/V is not affected.
+        /// N is reset.
+        /// C is data from bit 7 of Accumulator.
+        /// </summary>
+        /// <returns></returns>
+        private uint rlca()
+        {
+            m_AF.Hi = rl(m_AF.Hi, true);
+            return 4;
+        }
+
+        /// <summary>
+        /// The contents of the Accumulator (Register A) are rotated right 1 bit position. Bit 0 is copied
+        /// to the Carry flag and also to bit 7. Bit 0 is the least-significant bit.
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
+        /// Condition Bits Affected
+        /// S is not affected.
+        /// Z is not affected.
+        /// H is reset.
+        /// P/V is not affected.
+        /// N is reset.
+        /// C is data from bit 0 of Accumulator.
+        /// </summary>
+        /// <returns></returns>
+        private uint rrca()
+        {
+            m_AF.Hi = rr(m_AF.Hi, true);
+            return 4;
+        }
+
+        /// <summary>
         /// Register r
         /// B 000
         /// C 001
@@ -2069,13 +2125,13 @@ namespace ZXEmulatorLibrary
         {
             switch (reg)
             {
-                case Register.A: m_AF.Hi = rl(m_AF.Hi); break;
-                case Register.B: m_BC.Hi = rl(m_BC.Hi); break;
-                case Register.C: m_BC.Lo = rl(m_BC.Lo); break;
-                case Register.D: m_DE.Hi = rl(m_DE.Hi); break;
-                case Register.E: m_DE.Lo = rl(m_DE.Lo); break;
-                case Register.H: m_HL.Hi = rl(m_HL.Hi); break;
-                case Register.L: m_HL.Lo = rl(m_HL.Lo); break;
+                case Register.A: m_AF.Hi = rl(m_AF.Hi, false); break;
+                case Register.B: m_BC.Hi = rl(m_BC.Hi, false); break;
+                case Register.C: m_BC.Lo = rl(m_BC.Lo, false); break;
+                case Register.D: m_DE.Hi = rl(m_DE.Hi, false); break;
+                case Register.E: m_DE.Lo = rl(m_DE.Lo, false); break;
+                case Register.H: m_HL.Hi = rl(m_HL.Hi, false); break;
+                case Register.L: m_HL.Lo = rl(m_HL.Lo, false); break;
             }
             return 8;
         }
@@ -2114,6 +2170,67 @@ namespace ZXEmulatorLibrary
             m_AF.Lo &= (byte)FlagMask.NN;
             m_AF.Lo |= (byte)FlagMask.C;
             return 4;
+        }
+
+        /// <summary>
+        /// Register r
+        /// B 000
+        /// C 001
+        /// D 010
+        /// E 011
+        /// H 100
+        /// L 101
+        /// A 1l1
+        /// The logical exclusive-OR operation is performed between the byte specified by the s operand
+        /// and the byte contained in the Accumulator; the result is stored in the Accumulator.
+        /// Instruction M Cycles    T States            4 MHz E.T.
+        /// XOR r       1           4                   1.00
+        /// XOR n       2           7 (4, 3)            1.75
+        /// XOR (HL)    2           7 (4, 3)            1.75
+        /// XOR (IX+d)  5           19 (4, 4, 3, 5, 3)  4.75
+        /// XOR (lY+d)  5           19 (4, 4, 3, 5, 3)  4.75
+        /// Condition Bits Affected
+        /// S is set if result is negative; otherwise, it is reset.
+        /// Z is set if result is 0; otherwise, it is reset.
+        /// H is reset.
+        /// P/V is set if parity even; otherwise, it is reset.
+        /// N is reset.
+        /// C is reset.
+        /// </summary>
+        /// <returns></returns>
+        private uint xor_r(Register reg)
+        {
+            switch(reg)
+            {
+                case Register.A: m_AF.Hi = xor(m_AF.Hi, m_AF.Hi); break;
+                case Register.B: m_AF.Hi = xor(m_AF.Hi, m_BC.Hi); break;
+                case Register.C: m_AF.Hi = xor(m_AF.Hi, m_BC.Lo); break;
+                case Register.D: m_AF.Hi = xor(m_AF.Hi, m_DE.Hi); break;
+                case Register.E: m_AF.Hi = xor(m_AF.Hi, m_DE.Lo); break;
+                case Register.H: m_AF.Hi = xor(m_AF.Hi, m_HL.Hi); break;
+                case Register.L: m_AF.Hi = xor(m_AF.Hi, m_HL.Lo); break;
+            }
+            return 4;
+        }
+
+        private uint xor_n()
+        {
+            throw new NotImplementedException();
+        }
+
+        private uint xor_hl()
+        {
+            throw new NotImplementedException();
+        }
+
+        private uint xor_ixd()
+        {
+            throw new NotImplementedException();
+        }
+
+        private uint xor_iyd()
+        {
+            throw new NotImplementedException();
         }
 
 
@@ -2260,47 +2377,90 @@ namespace ZXEmulatorLibrary
             return (byte)result;
         }
 
-        private byte rl(byte input)
+        private byte rl(byte input, bool forA)
         {
-            // Condition Bits Affected
-            // S is set if result is negative; otherwise, it is reset.
-            // Z is set if result is 0; otherwise, it is reset.
-            // H is reset.
-            // P/V is set if parity even; otherwise, it is reset.
-            // N is reset.
-            // C is data from bit 7 of source register.
             sbyte result = (sbyte)(input << 8);
             if ((input & 0x80) == 0x80)
             {
                 result |= 0x01;
             }
-            if (result < 0)
+            if (forA)
             {
-                m_AF.Lo |= (byte)FlagMask.S;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)FlagMask.NS;
-            }
-            if (result == 0)
-            {
-                m_AF.Lo |= (byte)FlagMask.Z;
-            }
-            else
-            {
-                m_AF.Lo &= (byte)FlagMask.NZ;
+                if (result < 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.S;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NS;
+                }
+                if (result == 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.Z;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NZ;
+                }
+                if ((result & 0x01) == 0x01)
+                {
+                    m_AF.Lo |= (byte)FlagMask.PE;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.PO;
+                }
             }
             m_AF.Lo &= (byte)FlagMask.NH;
-            if ((result & 0x01) == 0x01)
+            m_AF.Lo &= (byte)FlagMask.NN;
+            if ((input & 0x80) == 0x80)
             {
-                m_AF.Lo |= (byte)FlagMask.PE;
+                m_AF.Lo |= (byte)FlagMask.C;
             }
             else
             {
-                m_AF.Lo &= (byte)FlagMask.PO;
+                m_AF.Lo &= (byte)FlagMask.NC;
             }
+            return (byte)result;
+        }
+
+        private byte rr(byte input, bool forA)
+        {
+            sbyte result = (sbyte)(input >> 8);
+            if ((input & 0x01) == 0x01)
+            {
+                result = (sbyte)((byte)result | 0x80);
+            }
+            if (forA)
+            {
+                if (result < 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.S;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NS;
+                }
+                if (result == 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.Z;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NZ;
+                }
+                if ((result & 0x01) == 0x01)
+                {
+                    m_AF.Lo |= (byte)FlagMask.PE;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.PO;
+                }
+            }
+            m_AF.Lo &= (byte)FlagMask.NH;
             m_AF.Lo &= (byte)FlagMask.NN;
-            if ((input & 0x80) == 0x80)
+            if ((input & 0x01) == 0x01)
             {
                 m_AF.Lo |= (byte)FlagMask.C;
             }
@@ -2386,6 +2546,46 @@ namespace ZXEmulatorLibrary
                 m_AF.Lo &= (byte)FlagMask.PO;
             }
             m_AF.Lo |= (byte)FlagMask.N;
+            return (byte)result;
+        }
+
+        private byte xor(byte inputA, byte inputB)
+        {
+            // Condition Bits Affected
+            // S is set if result is negative; otherwise, it is reset.
+            // Z is set if result is 0; otherwise, it is reset.
+            // H is reset.
+            // P/V is set if parity even; otherwise, it is reset.
+            // N is reset.
+            // C is reset.
+            sbyte result = (sbyte)(inputA ^ inputB);
+            if (result < 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.S;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NS;
+            }
+            if (result == 0)
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            m_AF.Hi &= (byte)FlagMask.NH;
+            if ((result & 0x01) == 0x01)
+            {
+                m_AF.Lo |= (byte)FlagMask.PE;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.PO;
+            }
+            m_AF.Lo &= (byte)FlagMask.NN;
+            m_AF.Lo &= (byte)FlagMask.NC;
             return (byte)result;
         }
 
