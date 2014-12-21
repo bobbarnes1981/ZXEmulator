@@ -19,6 +19,8 @@ namespace ZXEmulatorLibrary
             {0x06, "ld_r_n B"},
             {0x07, "rlca"},
 
+            {0x12, "ld__DE_a"},
+
             {0x0B, "dec_ss BC"},
 
             {0x0D, "dec_r C"},
@@ -90,17 +92,29 @@ namespace ZXEmulatorLibrary
 
             {0x60, "ld_r_r H B"},
 
+            {0x67, "ld_r_r H A"},
+            {0x68, "ld_r_r L B"},
             {0x69, "ld_r_r L C"},
+
+            {0x6F, "ld_r_r L A"},
 
             {0x76, "halt"},
 
             {0x78, "ld_r_r A B"},
 
+            {0x7A, "ld_r_r A D"},
             {0x7B, "ld_r_r A E"},
-
+            {0x7C, "ld_r_r A H"},
+            {0x7D, "ld_r_r A L"},
             {0x7E, "ld_r_hl A"},
 
+            {0x83, "add_a_r E"},
+
+            {0x85, "add_a_r L"},
+
             {0x87, "add_a_r A"},
+
+            {0x96, "sub_hl"},
 
             {0xA7, "and_r A"},
 
@@ -136,6 +150,7 @@ namespace ZXEmulatorLibrary
 
             {0xD5, "push_qq DE"},
 
+            {0xD7, "rst_p 0x10"},
             {0xD8, "ret_cc C"},
             {0xD9, "exx"},
 
@@ -174,6 +189,8 @@ namespace ZXEmulatorLibrary
         private Dictionary<byte, string> m_opCodesCB = new Dictionary<byte, string>
         {
             {0x13, "rl_r E"},
+
+            {0x7E, "bit_b__hl__"},
         };
 
         private Dictionary<byte, string> m_opCodesDD = new Dictionary<byte, string>
@@ -204,6 +221,7 @@ namespace ZXEmulatorLibrary
 
             {0x63, "ld__nn__dd HL"},
 
+            {0x72, "sbc_hl_ss SP"},
             {0x73, "ld__nn__dd SP"},
 
             {0xB1, "cpir"},
@@ -218,6 +236,8 @@ namespace ZXEmulatorLibrary
             {0x96, "sub_iyd"},
 
             {0xBE, "cp_iyd"},
+
+            {0xCB, "res_b_iyd"},
         };
 
         public bool Debug { get; set; }
@@ -327,12 +347,12 @@ namespace ZXEmulatorLibrary
                 case 0x0F: cycles = rrca(); break;
 
                 case 0x11: cycles = ld_dd_nn(RegisterPairSP.DE); break;
-
+                case 0x12: cycles = ld__DE_a(); break;
                 case 0x13: cycles = inc_ss(RegisterPairSP.DE); break;
 
                 case 0x15: cycles = dec_r(Register.D); break;
                 case 0x16: cycles = ld_r_n(Register.D); break;
-
+                case 0x17: cycles = rla(); break;
                 case 0x18: cycles = jr_e(); break;
 
                 case 0x1B: cycles = dec_ss(RegisterPairSP.DE); break;
@@ -391,17 +411,29 @@ namespace ZXEmulatorLibrary
 
                 case 0x60: cycles = ld_r_r(Register.H, Register.B); break;
 
+                case 0x67: cycles = ld_r_r(Register.H, Register.A); break;
+                case 0x68: cycles = ld_r_r(Register.L, Register.B); break;
                 case 0x69: cycles = ld_r_r(Register.L, Register.C); break;
+
+                case 0x6F: cycles = ld_r_r(Register.L, Register.A); break;
 
                 case 0x76: cycles = halt(); break;
 
                 case 0x78: cycles = ld_r_r(Register.A, Register.B); break;
 
+                case 0x7A: cycles = ld_r_r(Register.A, Register.D); break;
                 case 0x7B: cycles = ld_r_r(Register.A, Register.E); break;
-
+                case 0x7C: cycles = ld_r_r(Register.A, Register.H); break;
+                case 0x7D: cycles = ld_r_r(Register.A, Register.L); break;
                 case 0x7E: cycles = ld_r_hl(Register.A); break;
 
+                case 0x83: cycles = add_a_r(Register.E); break;
+
+                case 0x85: cycles = add_a_r(Register.L); break;
+
                 case 0x87: cycles = add_a_r(Register.A); break;
+
+                case 0x96: cycles = sub_hl(); break;
 
                 case 0xA7: cycles = and_r(Register.A); break;
 
@@ -437,6 +469,7 @@ namespace ZXEmulatorLibrary
 
                 case 0xD5: cycles = push_qq(RegisterPairAF.DE); break;
 
+                case 0xD7: cycles = rst_p(ResetLocation.Addr10h); break;
                 case 0xD8: cycles = ret_cc(Condition.C); break;
                 case 0xD9: cycles = exx(); break;
 
@@ -491,6 +524,8 @@ namespace ZXEmulatorLibrary
             switch (opcode)
             {
                 case 0x13: cycles = rl_r(Register.E); break;
+
+                case 0x7E: cycles = bit_b__hl__(); break;
 
                 default:
                     throw new Exception(string.Format("Unhandled Opcode: 0xCB 0x{0:x2} @ 0x{1:x4}", opcode, m_PC.Register - 2));
@@ -555,6 +590,7 @@ namespace ZXEmulatorLibrary
 
                 case 0x63: cycles = ld__nn__dd(RegisterPairSP.HL); break;
 
+                case 0x72: cycles = sbc_hl_ss(RegisterPairSP.SP); break;
                 case 0x73: cycles = ld__nn__dd(RegisterPairSP.SP); break;
 
                 case 0xB1: cycles = cpir(); break;
@@ -585,6 +621,8 @@ namespace ZXEmulatorLibrary
                 case 0x96: cycles = sub_iyd(); break;
 
                 case 0xBE: cycles = cp_iyd(); break;
+
+                case 0xCB: cycles = res_b_iyd(); break;
 
                 default:
                     throw new Exception(string.Format("Unhandled Opcode: 0xFD 0x{0:x2} @ 0x{1:x4}", opcode, m_PC.Register - 2));
@@ -1491,6 +1529,21 @@ namespace ZXEmulatorLibrary
             return 19;
         }
 
+        /// <summary>
+        /// The contents of the Accumulator are loaded to the memory location specified by the contents
+        /// of the DE register pair.
+        /// M Cycles    T States    4 MHz E.T.
+        /// 2           7 (4, 3)    1.75
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <returns></returns>
+        private uint ld__DE_a()
+        {
+            m_bus.Write(m_DE.Register, m_AF.Hi);
+            return 7;
+        }
+
         private uint call_nn()
         {
             //Description: The current contents of the Program Counter (PC) are pushed onto the top
@@ -2083,7 +2136,28 @@ namespace ZXEmulatorLibrary
         /// <returns></returns>
         private uint rlca()
         {
-            m_AF.Hi = rl(m_AF.Hi, true);
+            m_AF.Hi = rlc(m_AF.Hi, true);
+            return 4;
+        }
+
+        /// <summary>
+        /// The contents of the Accumulator (Register A) are rotated left 1 bit position through the
+        /// Carry flag. The previous contents of the Carry flag are copied to bit 0. Bit 0 is the leastsignificant
+        /// bit.
+        /// M Cycles    T States    4 MHz E.T.
+        /// 1           4           1.00
+        /// Condition Bits Affected
+        /// S is not affected.
+        /// Z is not affected.
+        /// H is reset.
+        /// P/V is not affected.
+        /// N is reset.
+        /// C is data from bit 7 of Accumulator.
+        /// </summary>
+        /// <returns></returns>
+        private uint rla()
+        {
+            m_AF.Hi = rr(m_AF.Hi, true);
             return 4;
         }
 
@@ -2103,7 +2177,7 @@ namespace ZXEmulatorLibrary
         /// <returns></returns>
         private uint rrca()
         {
-            m_AF.Hi = rr(m_AF.Hi, true);
+            m_AF.Hi = rrc(m_AF.Hi, true);
             return 4;
         }
 
@@ -2161,6 +2235,38 @@ namespace ZXEmulatorLibrary
         private uint rl_iyd()
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// This instruction tests bit b in the memory location specified by the contents of the HL register
+        /// pair and sets the Z flag accordingly. In the assembled object code, operand b is specified
+        /// as follows:
+        /// Bit Tested b
+        /// 0 000
+        /// 1 001
+        /// 2 010
+        /// 3 011
+        /// 4 100
+        /// 5 101
+        /// 6 110
+        /// 1 111
+        /// M Cycles    T States        4 MHz E.T.
+        /// 3           12 (4, 4, 4)    4 3.00
+        /// Condition Bits Affected
+        /// S is unknown.
+        /// Z is set if specified bit is 0; otherwise, it is reset.
+        /// H is set.
+        /// P/V is unknown.
+        /// H is reset.
+        /// C is not affected.
+        /// </summary>
+        /// <returns></returns>
+        private uint bit_b__hl__()
+        {
+            byte data = m_bus.Read(m_HL.Register);
+            byte b = (byte)((getN() >> 3) & 0x07);
+            bit_b((Bit)b, data);
+            return 12;
         }
 
         /// <summary>
@@ -2243,6 +2349,42 @@ namespace ZXEmulatorLibrary
         private uint xor_iyd()
         {
             throw new NotImplementedException();
+        }
+
+        private uint res_b_r(Register reg)
+        {
+            throw new NotImplementedException();
+        }
+
+        private uint res_b_hl()
+        {
+            throw new NotImplementedException();
+        }
+
+        private uint res_b_ixd()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Bit b in operand m is reset.
+        /// Instruction M Cycles    T States                4 MHz E.T.
+        /// RES r       4           8 (4, 4)                2.00
+        /// RES (HL)    4           15 (4, 4, 4, 3)         3.75
+        /// RES (IX+d)  6           23 (4, 4, 3, 5, 4, 3)   5.75
+        /// RES (lY+d)  6           23 (4, 4, 3, 5, 4, 3)   5.75
+        /// Condition Bits Affected
+        /// None.
+        /// </summary>
+        /// <returns></returns>
+        private uint res_b_iyd()
+        {
+            sbyte d = (sbyte)getN();
+            byte b = (byte)((getN() >> 3) & 0x07);
+            ushort address = (ushort)(m_IY + d);
+            byte data = m_bus.Read(address);
+            m_bus.Write(address, res_b((Bit)b, data));
+            return 23;
         }
 
 
@@ -2389,9 +2531,117 @@ namespace ZXEmulatorLibrary
             return (byte)result;
         }
 
+        private void bit_b(Bit bit, byte data)
+        {
+            // Condition Bits Affected
+            // S is unknown.
+            // Z is set if specified bit is 0; otherwise, it is reset.
+            // H is set.
+            // P/V is unknown.
+            // N is reset.
+            // C is not affected.
+            byte realBit = 0x00;
+            switch(bit)
+            {
+                case Bit.ZERO: realBit = 0x01; break;
+                case Bit.ONE: realBit = 0x02; break;
+                case Bit.TWO: realBit = 0x04; break;
+                case Bit.THREE: realBit = 0x08; break;
+                case Bit.FOUR: realBit = 0x10; break;
+                case Bit.FIVE: realBit = 0x20; break;
+                case Bit.SIX: realBit = 0x40; break;
+                case Bit.SEVEN: realBit = 0x80; break;
+            }
+            if ((byte)(data & (byte)realBit) == (byte)realBit)
+            {
+                m_AF.Lo &= (byte)FlagMask.NZ;
+            }
+            else
+            {
+                m_AF.Lo |= (byte)FlagMask.Z;
+            }
+            m_AF.Lo |= (byte)FlagMask.H;
+            m_AF.Lo &= (byte)FlagMask.NN;
+        }
+
+        private byte res_b(Bit bit, byte data)
+        {
+            switch (bit)
+            {
+                case Bit.ZERO: data &= 0xFE; break;
+                case Bit.ONE: data &= 0xFD; break;
+                case Bit.TWO: data &= 0xFB; break;
+                case Bit.THREE: data &= 0xF7; break;
+                case Bit.FOUR: data &= 0xEF; break;
+                case Bit.FIVE: data &= 0xDF; break;
+                case Bit.SIX: data &= 0xBF; break;
+                case Bit.SEVEN: data &= 0x7F; break;
+            }
+            return data;
+        }
+
         private byte rl(byte input, bool forA)
         {
-            sbyte result = (sbyte)(input << 8);
+            sbyte result = (sbyte)(input << 1);
+            if ((byte)(m_AF.Lo & (byte)FlagMask.C) == (byte)FlagMask.C)
+            {
+                result = (sbyte)(result | 0x01);
+            }
+            else
+            {
+                result = (sbyte)(result & 0xFE);
+            }
+            if ((input & 0x80) == 0x80)
+            {
+                m_AF.Lo |= (byte)FlagMask.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NC;
+            }
+            if (forA)
+            {
+                if (result < 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.S;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NS;
+                }
+                if (result == 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.Z;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NZ;
+                }
+                if ((result & 0x01) == 0x01)
+                {
+                    m_AF.Lo |= (byte)FlagMask.PE;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.PO;
+                }
+            }
+            m_AF.Lo &= (byte)FlagMask.NH;
+            m_AF.Lo &= (byte)FlagMask.NN;
+            if ((input & 0x80) == 0x80)
+            {
+                m_AF.Lo |= (byte)FlagMask.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NC;
+            }
+            return (byte)result;
+        }
+
+        private byte rlc(byte input, bool forA)
+        {
+            sbyte result = (sbyte)(input << 1);
             if ((input & 0x80) == 0x80)
             {
                 result |= 0x01;
@@ -2438,7 +2688,67 @@ namespace ZXEmulatorLibrary
 
         private byte rr(byte input, bool forA)
         {
-            sbyte result = (sbyte)(input >> 8);
+            sbyte result = (sbyte)(input >> 1);
+            if ((byte)(m_AF.Lo & (byte)FlagMask.C) == (byte)FlagMask.C)
+            {
+                result = (sbyte)(result | 0x80);
+            }
+            else
+            {
+                result = (sbyte)(result & 0x7F);
+            }
+            if ((input & 0x01) == 0x01)
+            {
+                m_AF.Lo |= (byte)FlagMask.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NC;
+            }
+
+            if (forA)
+            {
+                if (result < 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.S;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NS;
+                }
+                if (result == 0)
+                {
+                    m_AF.Lo |= (byte)FlagMask.Z;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.NZ;
+                }
+                if ((result & 0x01) == 0x01)
+                {
+                    m_AF.Lo |= (byte)FlagMask.PE;
+                }
+                else
+                {
+                    m_AF.Lo &= (byte)FlagMask.PO;
+                }
+            }
+            m_AF.Lo &= (byte)FlagMask.NH;
+            m_AF.Lo &= (byte)FlagMask.NN;
+            if ((input & 0x01) == 0x01)
+            {
+                m_AF.Lo |= (byte)FlagMask.C;
+            }
+            else
+            {
+                m_AF.Lo &= (byte)FlagMask.NC;
+            }
+            return (byte)result;
+        }
+
+        private byte rrc(byte input, bool forA)
+        {
+            sbyte result = (sbyte)(input >> 1);
             if ((input & 0x01) == 0x01)
             {
                 result = (sbyte)((byte)result | 0x80);

@@ -39,6 +39,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Bit.cs" />
     <Compile Include="ResetLocation.cs" />
     <Compile Include="ZX80\Bus.cs" />
     <Compile Include="FlagMask.cs" />
